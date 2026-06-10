@@ -1,0 +1,121 @@
+HELP.md
+target/
+.mvn/wrapper/maven-wrapper.jar
+!**/src/main/**/target/
+!**/src/test/**/target/
+
+### STS ###
+.apt_generated
+.classpath
+.factorypath
+.project
+.settings
+.springBeans
+.sts4-cache
+
+### IntelliJ IDEA ###
+.idea
+*.iws
+*.iml
+*.ipr
+
+### NetBeans ###
+/nbproject/private/
+/nbbuild/
+/dist/
+/nbdist/
+/.nb-gradle/
+build/
+!**/src/main/**/build/
+!**/src/test/**/build/
+
+### VS Code ###
+.vscode/
+
+# Compiled class files
+*.class
+
+# Log files
+*.log
+
+# Maven
+target/
+pom.xml.tag
+pom.xml.releaseBackup
+pom.xml.versionsBackup
+pom.xml.next
+release.properties
+dependency-reduced-pom.xml
+buildNumber.properties
+
+# Gradle
+.gradle/
+build/
+
+# IDE - IntelliJ IDEA
+.idea/
+*.iws
+*.iml
+*.ipr
+out/
+
+# IDE - Eclipse
+.project
+.classpath
+.settings/
+.springBeans
+.sts4-cache/
+
+# IDE - VS Code
+.vscode/
+
+# NetBeans
+/nbproject/private/
+/nbbuild/
+/dist/
+/nbdist/
+/.nb-gradle/
+
+# OS generated files
+.DS_Store
+Thumbs.db
+
+# Spring Boot
+application-local.properties
+application-dev.properties
+application-prod.properties
+
+# Environment files
+.env
+.env.*
+
+# Generated files
+generated/
+tmp/
+temp/
+
+# H2 Database
+*.mv.db
+*.trace.db
+
+# Test reports
+surefire-reports/
+failsafe-reports/
+
+# Coverage reports
+coverage/
+jacoco.exec
+/site/
+
+# Docker
+docker-compose.override.yml
+
+# Secrets / Keys
+*.pem
+*.key
+*.p12
+*.jks
+*.keystore
+
+# Lombok
+lombok.config
