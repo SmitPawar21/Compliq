@@ -16,19 +16,31 @@ import java.util.*;
 
 import com.smit.compliq.dto.DocumentDTO;
 import com.smit.compliq.entity.Document;
+import com.smit.compliq.entity.ExtractedDocument;
+import com.smit.compliq.entity.ExtractedField;
 import com.smit.compliq.enums.DocumentType;
 import com.smit.compliq.exception.DocumentNotFoundException;
+import com.smit.compliq.repository.ExtractedDocumentRepository;
+import com.smit.compliq.repository.ExtractedFieldRepository;
 import com.smit.compliq.service.DocumentService;
+import com.smit.compliq.service.ExtractionService;
 
 @RestController
 @RequestMapping("/api/documents")
 public class DocumentController {
 	
 	private final DocumentService documentService;
+	private final ExtractionService extractionService;
 	
-	public DocumentController(DocumentService documentService) {
+	private final ExtractedDocumentRepository extractedDocumentRepository;
+	private final ExtractedFieldRepository extractedFieldRepository;
+	
+	public DocumentController(DocumentService documentService, ExtractionService extractionService, ExtractedDocumentRepository extractedDocumentRepository, ExtractedFieldRepository extractedFieldRepository) {
 		super();
 		this.documentService = documentService;
+		this.extractionService = extractionService;
+		this.extractedDocumentRepository = extractedDocumentRepository;
+		this.extractedFieldRepository = extractedFieldRepository;
 	}
 	
 	@PostMapping("/upload")
@@ -86,4 +98,41 @@ public class DocumentController {
 			return ResponseEntity.status(HttpStatus.BAD_REQUEST).body(e.getMessage());
 		}
 	}
+	
+	@PostMapping("/{id}/process")
+	public ResponseEntity<?> processDocument(@PathVariable long id) {
+		try {
+			extractionService.processDocument(id);
+
+	        return ResponseEntity.ok(
+	                "Document processed successfully");
+		} catch (Exception e) {
+			return ResponseEntity.status(HttpStatus.BAD_REQUEST).body(e.getMessage());
+		}
+	}
+	
+	@GetMapping("/{id}/ocr")
+	public ResponseEntity<?> getOCRText(@PathVariable long id) {
+		try {			
+			ExtractedDocument extractedDocument = extractedDocumentRepository.findByDocumentId(id);
+			if(extractedDocument==null) {
+				ResponseEntity.status(HttpStatus.NOT_FOUND).body("Extracted Document NOT FOUND");
+			}
+			
+			return ResponseEntity.ok(
+					extractedDocument.getExtractedText());
+		} catch (Exception e) {
+			return ResponseEntity.status(HttpStatus.BAD_REQUEST).body(e.getMessage());
+		}
+	}
+	
+	@GetMapping("/{id}/fields")
+	public ResponseEntity<?> getExtractedFields(
+	        @PathVariable long id) {
+
+	    List<ExtractedField> fields = extractedFieldRepository.findByDocumentId(id);
+
+	    return ResponseEntity.ok(fields);
+	}
+	
 }
