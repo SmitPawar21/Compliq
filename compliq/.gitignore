@@ -119,3 +119,5 @@ docker-compose.override.yml
 
 # Lombok
 lombok.config
+
+src/main/resources/application.properties

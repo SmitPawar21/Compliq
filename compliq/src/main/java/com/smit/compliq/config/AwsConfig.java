@@ -36,18 +36,18 @@ public class AwsConfig {
                 .build();
     }
     
-    @Bean
-    public TextractClient textractClient() {
-        return TextractClient.builder()
-                .region(Region.AP_SOUTH_1)
-                .credentialsProvider(
-                        StaticCredentialsProvider.create(
-                                AwsBasicCredentials.create(
-                                        accessKey,
-                                        secretKey
-                                )
-                        )
-                )
-                .build();
-    }
+//    @Bean
+//    public TextractClient textractClient() {
+//        return TextractClient.builder()
+//                .region(Region.AP_SOUTH_1)
+//                .credentialsProvider(
+//                        StaticCredentialsProvider.create(
+//                                AwsBasicCredentials.create(
+//                                        accessKey,
+//                                        secretKey
+//                                )
+//                        )
+//                )
+//                .build();
+//    }
 }

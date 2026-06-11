@@ -5,7 +5,6 @@ import java.util.Date;
 import org.springframework.stereotype.Service;
 import org.springframework.web.multipart.MultipartFile;
 
-import com.smit.compliq.dto.DocumentDTO;
 import com.smit.compliq.entity.Document;
 import com.smit.compliq.entity.User;
 import com.smit.compliq.enums.DocumentType;
@@ -59,7 +58,7 @@ public class DocumentService {
 	public Document postDocument(
 	        MultipartFile file,
 	        DocumentType documentType,
-	        Integer uploadedByUserId) {
+	        long uploadedByUserId) {
 		
 		validateFile(file);
 
@@ -97,12 +96,17 @@ public class DocumentService {
 	}
 	
 	public Document getOneDocument(long doc_id) {
-		return documentRepository.findById(doc_id);
+		return documentRepository.findById(doc_id)
+		        .orElseThrow(() ->
+                new DocumentNotFoundException(
+                        "Document not found with ID: " + doc_id));
 	}
 	
 	public Document deleteDocument(long doc_id) {
-		Document doc = documentRepository.findById(doc_id);
-		if(doc==null) throw new DocumentNotFoundException("Document not found with this id: "+doc_id);
+		Document doc = documentRepository.findById(doc_id)
+		        .orElseThrow(() ->
+                new DocumentNotFoundException(
+                        "Document not found with ID: " + doc_id));
 		
 		s3Service.deleteFile(doc.getS3Key());
 		documentRepository.delete(doc);

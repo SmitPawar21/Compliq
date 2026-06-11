@@ -11,15 +11,13 @@ import com.smit.compliq.repository.DocumentRepository;
 import com.smit.compliq.repository.ExtractedDocumentRepository;
 import com.smit.compliq.repository.ExtractedFieldRepository;
 import com.smit.compliq.service.ExtractionService;
-import com.smit.compliq.service.TextractService;
+import com.smit.compliq.service.OCRService;
 
 import java.util.*;
 
 import jakarta.transaction.Transactional;
-import lombok.RequiredArgsConstructor;
 
 @Service
-@RequiredArgsConstructor
 public class ExtractionServiceImpl implements ExtractionService {
 	private final DocumentRepository documentRepository;
 
@@ -27,26 +25,27 @@ public class ExtractionServiceImpl implements ExtractionService {
 
     private final ExtractedFieldRepository extractedFieldRepository;
 
-    private final TextractService textractService;
+    private final OCRService ocrService;
 
     public ExtractionServiceImpl(DocumentRepository documentRepository,
 			ExtractedDocumentRepository extractedDocumentRepository, ExtractedFieldRepository extractedFieldRepository,
-			TextractService textractService) {
+			OCRService ocrService) {
 		super();
 		this.documentRepository = documentRepository;
 		this.extractedDocumentRepository = extractedDocumentRepository;
 		this.extractedFieldRepository = extractedFieldRepository;
-		this.textractService = textractService;
+		this.ocrService = ocrService;
 	}
 
 	@Override
     @Transactional
     public void processDocument(long documentId) {
 
-        Document document = documentRepository.findById(documentId);
+        Document document = documentRepository.findById(documentId)
+                .orElseThrow(() ->
+                new DocumentNotFoundException(
+                        "Document not found with ID: " + documentId));
         
-        if(document==null) throw new DocumentNotFoundException("Document not found with id: "+documentId);
-
         try {
 
             document.setProcessingStatus(
@@ -55,7 +54,7 @@ public class ExtractionServiceImpl implements ExtractionService {
             documentRepository.save(document);
 
             String extractedText =
-                    textractService.extractText(document);
+            		ocrService.extractText(document);
 
             ExtractedDocument extractedDocument =
                     new ExtractedDocument();

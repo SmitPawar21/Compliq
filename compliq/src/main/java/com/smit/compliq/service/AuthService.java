@@ -1,6 +1,6 @@
 package com.smit.compliq.service;
 
-import org.springframework.security.crypto.password.PasswordEncoder
+import org.springframework.security.crypto.password.PasswordEncoder;
 import org.springframework.stereotype.Service;
 
 import com.smit.compliq.dto.RegisterDTO;

@@ -20,7 +20,7 @@ import jakarta.persistence.Table;
 public class Document {
 	@Id
 	@GeneratedValue(strategy=GenerationType.IDENTITY)
-	private long doc_id;
+	private long docId;
 	
 	@Column
 	private String fileName;
@@ -58,7 +58,7 @@ public class Document {
 	}
 
 	public long getDoc_id() {
-		return doc_id;
+		return docId;
 	}
 
 	public String getFileName() {

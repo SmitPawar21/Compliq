@@ -15,24 +15,20 @@ import com.smit.compliq.dto.JwtResponseDTO;
 import com.smit.compliq.dto.LoginDTO;
 import com.smit.compliq.dto.RegisterDTO;
 import com.smit.compliq.entity.User;
-import com.smit.compliq.repository.UserRepository;
 import com.smit.compliq.security.JwtUtil;
 import com.smit.compliq.service.AuthService;
-import com.smit.compliq.service.UserService;
 
 import jakarta.validation.Valid;
 
 @RestController
 @RequestMapping("/api/auth")
 public class AuthController {
-	private UserRepository userRepo;
 	private AuthService authService;
 	private AuthenticationManager authManager;
 	private JwtUtil jwtUtil;
 	
-	public AuthController(UserRepository userRepo, AuthService authService, AuthenticationManager authManager,
+	public AuthController(AuthService authService, AuthenticationManager authManager,
 			JwtUtil jwtUtil) {
-		this.userRepo = userRepo;
 		this.authService = authService;
 		this.authManager = authManager;
 		this.jwtUtil = jwtUtil;

@@ -2,6 +2,6 @@ package com.smit.compliq.service;
 
 import com.smit.compliq.entity.Document;
 
-public interface TextractService {
+public interface OCRService {
 	String extractText(Document document);
 }
