@@ -4,6 +4,7 @@ import org.springframework.stereotype.Service;
 
 import com.smit.compliq.dto.RegisterDTO;
 import com.smit.compliq.entity.User;
+import com.smit.compliq.exception.UserNotFoundException;
 import com.smit.compliq.repository.UserRepository;
 
 import java.util.*;
@@ -17,7 +18,8 @@ public class UserService {
 	}
 	
 	public User getOneUser(long user_id) {
-		return userRepository.findById(user_id);
+		User user = userRepository.findById(user_id);
+		return user;
 	}
 	
 	public User updateUser(long user_id, RegisterDTO dto) {

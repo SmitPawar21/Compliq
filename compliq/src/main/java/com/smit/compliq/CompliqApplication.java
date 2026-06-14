@@ -8,6 +8,6 @@ public class CompliqApplication {
 
 	public static void main(String[] args) {
 		SpringApplication.run(CompliqApplication.class, args);
-	}
+	}	
 
 }

@@ -6,6 +6,8 @@ import com.smit.compliq.enums.Role;
 
 import jakarta.persistence.Column;
 import jakarta.persistence.Entity;
+import jakarta.persistence.EnumType;
+import jakarta.persistence.Enumerated;
 import jakarta.persistence.GeneratedValue;
 import jakarta.persistence.GenerationType;
 import jakarta.persistence.Id;
@@ -16,7 +18,7 @@ import jakarta.persistence.Table;
 public class User {
 	@Id
 	@GeneratedValue(strategy=GenerationType.IDENTITY)
-	private long user_id;
+	private long userId;
 	
 	@Column
 	private String username;
@@ -27,7 +29,7 @@ public class User {
 	@Column
 	private String password;
 	
-	@Column
+	@Enumerated(EnumType.STRING)
 	private Role role;
 	
 	
@@ -46,7 +48,7 @@ public class User {
 	}
 
 	public long getId() {
-		return user_id;
+		return userId;
 	}
 
 	public String getUsername() {

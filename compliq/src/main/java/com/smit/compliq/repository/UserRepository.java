@@ -7,8 +7,8 @@ import org.springframework.data.jpa.repository.JpaRepository;
 import com.smit.compliq.entity.User;
 
 public interface UserRepository extends JpaRepository<User, Long> {
-	Optional<User> findByUsername(String username); 
-	User findById(long user_id);
+	User findById(long id);
+	Optional<User> findByUsername(String username);
 	boolean existsByUsername(String username);
 	boolean existsByEmail(String email);
 }

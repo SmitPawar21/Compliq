@@ -4,6 +4,8 @@ import java.util.Date;
 
 import com.smit.compliq.enums.Role;
 
+import jakarta.persistence.EnumType;
+import jakarta.persistence.Enumerated;
 import jakarta.validation.constraints.NotBlank;
 
 public class RegisterDTO {
@@ -17,10 +19,9 @@ public class RegisterDTO {
 	@NotBlank
 	private String password;
 	
-	@NotBlank
+	@Enumerated(EnumType.STRING)
 	private Role role;
 	
-	@NotBlank
 	private Date createdAt;
 
 	public String getUsername() {

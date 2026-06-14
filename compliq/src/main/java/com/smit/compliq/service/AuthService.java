@@ -34,8 +34,11 @@ public class AuthService {
 			user.setUsername(request.getUsername());
 			user.setEmail(request.getEmail());
 			user.setPassword(passwordEncoder.encode(request.getPassword()));
+			user.setRole(request.getRole());
+			user.setCreatedAt(request.getCreatedAt());
 			
 			System.out.println("in user service: "+user);
+			System.out.println("role: "+request.getRole());
 			return userRepo.save(user);
 		} catch (Exception e) {
 			System.out.println("Error in userService. "+e);

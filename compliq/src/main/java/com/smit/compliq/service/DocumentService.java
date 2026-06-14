@@ -63,7 +63,6 @@ public class DocumentService {
 		validateFile(file);
 
 	    User user = userRepository.findById(uploadedByUserId);
-
 	    if (user == null) {
 	        throw new UserNotFoundException(
 	                "User not found with ID: " + uploadedByUserId);
@@ -73,7 +72,7 @@ public class DocumentService {
 
 	    String fileUrl = s3Service.getFileUrl(key);
 
-	    Document newDoc = new Document();
+ 	    Document newDoc = new Document();
 
 	    newDoc.setDocumentType(documentType);
 	    newDoc.setFileName(file.getOriginalFilename());
