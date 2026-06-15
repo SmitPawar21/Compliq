@@ -29,7 +29,8 @@ public class VendorService {
 		ven.setVendorName(dto.getVendorName());
 		ven.setVendorStatus(VendorStatus.ACTIVE);
 		
-		return ven;
+		return vendorRepository.save(ven);
+//		return ven;
 	}
 	
 	public List<Vendor> getAllVendors() {
@@ -54,9 +55,9 @@ public class VendorService {
 		
 		if(vendor==null) throw new VendorNotFoundException("Vendor Not Found with id: "+vendor_id);
 		
-		if(status=="active" || status=="Active" || status=="ACTIVE") {
+		if(status.equals("active") || status.equals("Active") || status.equals("ACTIVE")) {
 			vendor.setVendorStatus(VendorStatus.ACTIVE);
-		} else if(status=="inactive" || status=="Inactive" || status=="INACTIVE") {
+		} else if(status.equals("inactive") || status.equals("Inactive") || status.equals("INACTIVE")) {
 			vendor.setVendorStatus(VendorStatus.INACTIVE);
 		} else {
 			throw new IncorrectVendorStatusException("incorrect vendor status");

@@ -1,7 +1,5 @@
 package com.smit.compliq.dto;
 
-import com.smit.compliq.enums.VendorStatus;
-
 import jakarta.validation.constraints.NotBlank;
 
 public class VendorDTO {
@@ -9,18 +7,16 @@ public class VendorDTO {
 	private String vendorName;
 	
 	@NotBlank
-	private long gstNumber;
+	private String gstNumber;
 	
 	@NotBlank
-	private long panNumber;
+	private String panNumber;
 	
 	@NotBlank
 	private String email;
 	
 	@NotBlank
 	private long phone;
-	
-	private VendorStatus vendorStatus;
 
 	public String getVendorName() {
 		return vendorName;
@@ -30,19 +26,19 @@ public class VendorDTO {
 		this.vendorName = vendorName;
 	}
 
-	public long getGstNumber() {
+	public String getGstNumber() {
 		return gstNumber;
 	}
 
-	public void setGstNumber(long gstNumber) {
+	public void setGstNumber(String gstNumber) {
 		this.gstNumber = gstNumber;
 	}
 
-	public long getPanNumber() {
+	public String getPanNumber() {
 		return panNumber;
 	}
 
-	public void setPanNumber(long panNumber) {
+	public void setPanNumber(String panNumber) {
 		this.panNumber = panNumber;
 	}
 
@@ -60,14 +56,6 @@ public class VendorDTO {
 
 	public void setPhone(long phone) {
 		this.phone = phone;
-	}
-
-	public VendorStatus getVendorStatus() {
-		return vendorStatus;
-	}
-
-	public void setVendorStatus(VendorStatus vendorStatus) {
-		this.vendorStatus = vendorStatus;
 	}
 	
 }

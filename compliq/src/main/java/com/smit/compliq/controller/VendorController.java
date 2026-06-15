@@ -86,6 +86,7 @@ public class VendorController {
 				@RequestParam String status
 			) {
 		try {
+			System.out.println("Vendor Controller: Update Status: Status received = "+status);
 			Vendor vendor = vendorService.updateVendorStatus(id, status);
 			
 			return ResponseEntity.ok(vendor);

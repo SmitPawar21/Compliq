@@ -4,6 +4,8 @@ import com.smit.compliq.enums.VendorStatus;
 
 import jakarta.persistence.Column;
 import jakarta.persistence.Entity;
+import jakarta.persistence.EnumType;
+import jakarta.persistence.Enumerated;
 import jakarta.persistence.GeneratedValue;
 import jakarta.persistence.GenerationType;
 import jakarta.persistence.Id;
@@ -20,10 +22,10 @@ public class Vendor {
 	private String vendorName;
 	
 	@Column
-	private long gstNumber;
+	private String gstNumber;
 	
 	@Column
-	private long panNumber;
+	private String panNumber;
 	
 	@Column
 	private String email;
@@ -31,12 +33,12 @@ public class Vendor {
 	@Column
 	private long phone;
 	
-	@Column
+	@Enumerated(EnumType.STRING)
 	private VendorStatus vendorStatus;
 	
 	public Vendor() {}
 
-	public Vendor(String vendorName, long gstNumber, long panNumber, String email, long phone,
+	public Vendor(String vendorName, String gstNumber, String panNumber, String email, long phone,
 			VendorStatus vendorStatus) {
 		super();
 		this.vendorName = vendorName;
@@ -63,19 +65,19 @@ public class Vendor {
 		this.vendorName = vendorName;
 	}
 
-	public long getGstNumber() {
+	public String getGstNumber() {
 		return gstNumber;
 	}
 
-	public void setGstNumber(long gstNumber) {
+	public void setGstNumber(String gstNumber) {
 		this.gstNumber = gstNumber;
 	}
 
-	public long getPanNumber() {
+	public String getPanNumber() {
 		return panNumber;
 	}
 
-	public void setPanNumber(long panNumber) {
+	public void setPanNumber(String panNumber) {
 		this.panNumber = panNumber;
 	}
 
