@@ -30,9 +30,9 @@ public class DocumentService {
 	
 	private static final long MAX_FILE_SIZE =
 	        10 * 1024 * 1024;
-
-	private static final Set<String> ALLOWED_CONTENT_TYPES =
-	        Set.of(
+	
+	private static Set<String> ALLOWED_CONTENT_TYPES = Set
+	        .of(
 	                "application/pdf",
 	                "image/png",
 	                "image/jpeg"

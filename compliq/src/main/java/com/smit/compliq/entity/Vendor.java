@@ -16,7 +16,7 @@ import jakarta.persistence.Table;
 public class Vendor {
 	@Id
 	@GeneratedValue(strategy=GenerationType.IDENTITY)
-	private long vendor_id;
+	private long vendorId;
 	
 	@Column
 	private String vendorName;
@@ -50,11 +50,7 @@ public class Vendor {
 	}
 
 	public long getVendor_id() {
-		return vendor_id;
-	}
-
-	public void setVendor_id(long vendor_id) {
-		this.vendor_id = vendor_id;
+		return vendorId;
 	}
 
 	public String getVendorName() {
