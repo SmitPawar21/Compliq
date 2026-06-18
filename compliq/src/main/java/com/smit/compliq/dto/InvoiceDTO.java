@@ -7,7 +7,14 @@ public class InvoiceDTO {
     private String vendorName;
     private double totalAmount;
     private Date invoiceDate;
+    private String gstNumber;
     
+	public String getGstNumber() {
+		return gstNumber;
+	}
+	public void setGstNumber(String gstNumber) {
+		this.gstNumber = gstNumber;
+	}
 	public String getInvoiceNumber() {
 		return invoiceNumber;
 	}

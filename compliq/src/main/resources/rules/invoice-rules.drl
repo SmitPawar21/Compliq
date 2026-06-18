@@ -1,0 +1,107 @@
+package rules;
+
+import com.smit.compliq.entity.Invoice;
+import com.smit.compliq.entity.PurchaseOrder;
+import com.smit.compliq.entity.Contract;
+import com.smit.compliq.drools.ValidationContext;
+import com.smit.compliq.drools.ValidationIssue;
+import com.smit.compliq.enums.Severity;
+
+global ValidationContext validationContext;
+
+
+rule "Duplicate Invoice Detection"
+when
+    $i1 : Invoice($num : invoiceNumber)
+    $i2 : Invoice(invoiceNumber == $num, this != $i1)
+then
+    validationContext.getValidationResult().addViolation(
+        new ValidationIssue("Duplicate Invoice Detection", "Duplicate invoice detected : " + $num, Severity.HIGH));
+end
+
+rule "Invoice Amount Exceeds PO Amount"
+when
+    $invoice : Invoice(
+        $amount : totalAmount
+    )
+
+    $po : PurchaseOrder(
+        vendor == $invoice.vendor,
+        $poAmount : totalAmount
+    )
+
+    eval($amount > $poAmount)
+then
+    validationContext.getValidationResult().addViolation(
+        new ValidationIssue("Invoice Amount Exceeds PO Amount", "Invoice amount exceeds PO amount", Severity.HIGH));
+end
+
+rule "Invoice Variance Threshold"
+when
+    $invoice : Invoice(
+        $amount : totalAmount
+    )
+
+    $po : PurchaseOrder(
+        vendor == $invoice.vendor,
+        $poAmount : totalAmount
+    )
+
+    eval(
+        (($amount - $poAmount) / $poAmount) > 0.02
+    )
+then
+    validationContext.getValidationResult().addViolation(
+        new ValidationIssue("Invoice Variance Threshold", "Invoice exceeds PO by more than 2%", Severity.MEDIUM));
+end
+
+rule "Invoice Date After PO Date"
+when
+    $invoice : Invoice(
+        $invDate : invoiceDate
+    )
+
+    $po : PurchaseOrder(
+        vendor == $invoice.vendor,
+        $poDate : issueDate
+    )
+
+    eval($invDate.before($poDate))
+then
+    validationContext.getValidationResult().addViolation(
+        new ValidationIssue("Invoice Date After PO Date", "Invoice date is before PO date", Severity.HIGH));
+end
+
+rule "Vendor Match Rule"
+when
+    $invoice : Invoice(
+        $vendor : vendor
+    )
+
+    $po : PurchaseOrder(
+        vendor != $vendor
+    )
+then
+    validationContext.getValidationResult().addViolation(
+        new ValidationIssue("Vendor Match Rule", "Vendor mismatch between Invoice and PO", Severity.HIGH));
+end
+
+rule "Active Contract Rule"
+when
+    $invoice : Invoice(
+        $vendor : vendor,
+        $invDate : invoiceDate
+    )
+
+    $contract : Contract(
+        vendor == $vendor
+    )
+
+    eval(
+        !$invDate.before($contract.getStartDate()) &&
+        !$invDate.after($contract.getEndDate())
+    )
+then
+    validationContext.getValidationResult().addViolation(
+        new ValidationIssue("Active Contract Rule", "No active contract found for invoice", Severity.HIGH));
+end

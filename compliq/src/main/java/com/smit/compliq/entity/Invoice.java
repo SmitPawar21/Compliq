@@ -28,19 +28,32 @@ public class Invoice {
 	@JoinColumn(name="docId", nullable=false)
 	private Document document;
 	
+	@Column
+	private String gstNumber;
+	
 	public Invoice() {}
-
-	public Invoice(String invoiceNumber, Vendor vendor, double totalAmount, Date invoiceDate, Document document) {
+	
+	public Invoice(String invoiceNumber, Vendor vendor, double totalAmount, Date invoiceDate, Document document,
+			String gstNumber) {
 		super();
 		this.invoiceNumber = invoiceNumber;
 		this.vendor = vendor;
 		this.totalAmount = totalAmount;
 		this.invoiceDate = invoiceDate;
 		this.document = document;
-	}
-
+		this.gstNumber = gstNumber;
+	}	
+	
 	public String getInvoiceNumber() {
 		return invoiceNumber;
+	}
+
+	public String getGstNumber() {
+		return gstNumber;
+	}
+
+	public void setGstNumber(String gstNumber) {
+		this.gstNumber = gstNumber;
 	}
 
 	public Document getDocument() {

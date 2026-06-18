@@ -1,0 +1,29 @@
+package rules;
+
+import com.smit.compliq.entity.Contract;
+import com.smit.compliq.drools.ValidationContext;
+import com.smit.compliq.drools.ValidationIssue;
+import com.smit.compliq.enums.Severity;
+
+global ValidationContext validationContext;
+
+rule "Contract Expiring Soon"
+when
+    $contract : Contract(
+        $endDate : endDate
+    )
+
+    eval(
+        ($endDate.getTime() - System.currentTimeMillis())
+        <= (30L * 24 * 60 * 60 * 1000)
+    )
+
+    eval(
+        $endDate.after(
+            new java.util.Date()
+        )
+    )
+then
+    validationContext.getValidationResult().addViolation(
+        new ValidationIssue("Contract Expiring Soon", "Contract expiring within 30 days", Severity.LOW));
+end

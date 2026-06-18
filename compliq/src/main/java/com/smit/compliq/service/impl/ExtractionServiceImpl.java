@@ -76,7 +76,7 @@ public class ExtractionServiceImpl implements ExtractionService {
                     document,
                     extractedText);
             
-            docDataPersistantService.persistExtractedData(document,extractedText);
+            docDataPersistantService.persistExtractedData(document);
 
             document.setProcessingStatus(
                     ProcessingStatus.COMPLETED);
