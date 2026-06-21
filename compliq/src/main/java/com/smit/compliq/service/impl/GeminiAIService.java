@@ -3,6 +3,7 @@ package com.smit.compliq.service.impl;
 import org.springframework.ai.chat.client.ChatClient;
 import org.springframework.stereotype.Service;
 
+import com.smit.compliq.exception.AIGenerationException;
 import com.smit.compliq.service.AIService;
 
 @Service
@@ -15,9 +16,13 @@ public class GeminiAIService implements AIService {
 
     @Override
     public String generateResponse(String prompt) {
-        return this.chatClient.prompt()
-            .user(prompt)
-            .call()
-            .content(); // Safely extracts the text response
+    	try {    		
+    		return this.chatClient.prompt()
+    				.user(prompt)
+    				.call()
+    				.content(); // Safely extracts the text response
+    	} catch (Exception e) {
+    		throw new AIGenerationException("Failed to generate AI response: \n"+ e);
+    	}
     }
 }
