@@ -1,4 +1,4 @@
-package com.smit.compliq;
+package com.smit.compliq.prompts;
 
 public class AIPrompts {
 	public static final String contractSummaryPrompt = "You are a procurement compliance analyst.\r\n"
@@ -24,4 +24,25 @@ public class AIPrompts {
 			+ "- Do not include markdown.\r\n"
 			+ "- Do not include explanations.\r\n"
 			+ "Contract:\r\n";
+	
+	public static final String clauseAnalysisPrompt = 
+			"You are a procurement compliance analyst.\r\n"
+			+ "Analyze the contract and determine whether the following clauses are present.\r\n"
+			+ "Required Clauses:\r\n"
+			+ "- Payment Terms\r\n"
+			+ "- Confidentiality\r\n"
+			+ "- Warranty\r\n"
+			+ "- Termination\r\n"
+			+ "- Penalty\r\n"
+			+ "- Dispute Resolution\r\n"
+			+ "Return ONLY valid JSON.\r\n"
+			+ "{\r\n"
+			+ "  \"presentClauses\": [],\r\n"
+			+ "  \"missingClauses\": []\r\n"
+			+ "}\r\n"
+			+ "Rules:\r\n"
+			+ "- Return JSON only.\r\n"
+			+ "- Do not include markdown.\r\n"
+			+ "- Do not include explanations.\r\n"
+			+ "- A clause is present only if clearly stated in the contract.";
 }

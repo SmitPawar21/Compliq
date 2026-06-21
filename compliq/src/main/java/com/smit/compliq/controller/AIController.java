@@ -8,6 +8,7 @@ import org.springframework.web.bind.annotation.PathVariable;
 import org.springframework.web.bind.annotation.RequestMapping;
 import org.springframework.web.bind.annotation.RestController;
 
+import com.smit.compliq.dto.ClauseAnalysisDTO;
 import com.smit.compliq.dto.ContractSummaryDTO;
 import com.smit.compliq.service.AIAnalysisService;
 import com.smit.compliq.service.AIService;
@@ -38,6 +39,16 @@ public class AIController {
 	public ResponseEntity<?> analyzeSummary(@PathVariable long id) {
 		try {
 			ContractSummaryDTO response = aiAnalysisService.getAISummaryOfContract(id);
+			return ResponseEntity.status(HttpStatus.ACCEPTED).body(response);
+		} catch (Exception e) {
+			return ResponseEntity.status(HttpStatus.BAD_REQUEST).body(e);
+		}
+	}
+	
+	@GetMapping("/document/{id}/clause-analysis") 
+	public ResponseEntity<?> clauseAnalysis(@PathVariable long id) {
+		try {
+			ClauseAnalysisDTO response = aiAnalysisService.getAIClauseAnalysis(id);
 			return ResponseEntity.status(HttpStatus.ACCEPTED).body(response);
 		} catch (Exception e) {
 			return ResponseEntity.status(HttpStatus.BAD_REQUEST).body(e);
