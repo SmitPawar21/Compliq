@@ -1,24 +1,23 @@
-import {BrowserRouter as Router, Routes, Route} from "react-router-dom";
-import HomePage from "./pages/HomePage";
-import LoginPage from "./pages/LoginPage";
-import RegisterPage from "./pages/RegisterPage";
-import CompliqPage from "./pages/CompliqPage";
-import ReportPage from "./pages/ReportPage";
+import { BrowserRouter as Router, Routes, Route, Navigate } from 'react-router-dom';
+import Navbar from './components/Navbar';
+import UploadPage from './pages/UploadPage';
+import ReportPage from './pages/ReportPage';
 
 function App() {
   return (
-    <>
-      <Router>
-        <Routes>
-          <Route path="/" element={<HomePage />} />
-          <Route path="/login" element={<LoginPage />} />
-          <Route path="/register" element={<RegisterPage />} />
-          <Route path="/compliq-platform" element={<CompliqPage />} />
-          <Route path="/compliance-report" element={<ReportPage />} />
-        </Routes>
-      </Router>
-    </>
-  )
+    <Router>
+      <div className="min-h-screen bg-gray-50 text-gray-900 font-sans">
+        <Navbar />
+        <main>
+          <Routes>
+            <Route path="/" element={<Navigate to="/upload" replace />} />
+            <Route path="/upload" element={<UploadPage />} />
+            <Route path="/report" element={<ReportPage />} />
+          </Routes>
+        </main>
+      </div>
+    </Router>
+  );
 }
 
-export default App
+export default App;
