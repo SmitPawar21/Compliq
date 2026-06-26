@@ -4,7 +4,7 @@ import org.springframework.stereotype.Service;
 
 import com.fasterxml.jackson.core.JsonProcessingException;
 import com.fasterxml.jackson.databind.ObjectMapper;
-import com.smit.compliq.AIPrompts;
+import com.smit.compliq.prompts.*;
 import com.smit.compliq.dto.ClauseAnalysisDTO;
 import com.smit.compliq.dto.ContractSummaryDTO;
 import com.smit.compliq.dto.RiskAssessmentDTO;
