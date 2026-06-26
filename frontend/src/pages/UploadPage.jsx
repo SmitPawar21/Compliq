@@ -13,15 +13,13 @@ const UploadPage = () => {
     const fetchDocuments = async () => {
         setFetchLoading(true);
         try {
-            const data = await getDocuments();
-            setDocuments(data || []);
+            // const data = await getDocuments();
+            const localDocs = JSON.parse(localStorage.getItem('uploadedDocuments')) || [];
+            setDocuments(localDocs);
             setError(null);
         } catch (err) {
             console.error('Failed to fetch documents', err);
-            // Ignore 404 since it might just mean no documents are found
-            if (err.response && err.response.status !== 404) {
-                setError('Failed to load documents.');
-            }
+            setError('Failed to load documents.');
         } finally {
             setFetchLoading(false);
         }
@@ -49,13 +47,23 @@ const UploadPage = () => {
         setSuccessMessage(null);
 
         try {
-            await uploadDocument(file, documentType);
+            // await uploadDocument(file, documentType);
+            
+            // Mocking local storage save
+            const newDoc = {
+                docId: Date.now(),
+                fileName: file.name,
+                documentType: documentType
+            };
+            const existingDocs = JSON.parse(localStorage.getItem('uploadedDocuments')) || [];
+            localStorage.setItem('uploadedDocuments', JSON.stringify([...existingDocs, newDoc]));
+
             setSuccessMessage('Document uploaded successfully!');
             setFile(null);
             document.getElementById('file-upload').value = '';
             fetchDocuments(); // Refresh table
         } catch (err) {
-            setError(err.response?.data?.message || err.message || 'Failed to upload document.');
+            setError(err.message || 'Failed to upload document.');
         } finally {
             setLoading(false);
         }
