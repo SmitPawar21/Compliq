@@ -40,7 +40,7 @@ public class AuthController {
 			User user = authService.registerNewUser(request);
 			return ResponseEntity.status(HttpStatus.CREATED).body("User Registered Successfully"+ user);
 		} catch (Exception e) {
-			return ResponseEntity.status(HttpStatus.BAD_REQUEST).body("Error"+e);
+			return ResponseEntity.status(HttpStatus.BAD_REQUEST).body("Error"+e.getMessage());
 		}
 	}
 	

@@ -26,12 +26,14 @@ import lombok.RequiredArgsConstructor;
 @Service
 @RequiredArgsConstructor
 public class ValidationService {
-	private final RuleExecutionService ruleExecutionService;
+	private RuleExecutionService ruleExecutionService;
 
-    private final DocumentRepository documentRepository;
+    private DocumentRepository documentRepository;
     private InvoiceRepository invoiceRepository;
     private PurchaseOrderRepository poRepository;
     private ContractRepository contractRepository;
+    
+    public ValidationService() {}
     
 	public ValidationService(RuleExecutionService ruleExecutionService, DocumentRepository documentRepository,
 			InvoiceRepository invoiceRepository, PurchaseOrderRepository poRepository,

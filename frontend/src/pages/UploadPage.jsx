@@ -1,5 +1,6 @@
 import { useState, useEffect } from 'react';
-import { uploadDocument, getDocuments } from '../services/api';
+import { uploadDocument, getDocuments, getAllUsers } from '../services/api';
+import { getCookie } from '../utils/cookies';
 
 const UploadPage = () => {
     const [file, setFile] = useState(null);
@@ -13,9 +14,8 @@ const UploadPage = () => {
     const fetchDocuments = async () => {
         setFetchLoading(true);
         try {
-            // const data = await getDocuments();
-            const localDocs = JSON.parse(localStorage.getItem('uploadedDocuments')) || [];
-            setDocuments(localDocs);
+            const data = await getDocuments();
+            setDocuments(data);
             setError(null);
         } catch (err) {
             console.error('Failed to fetch documents', err);
@@ -47,23 +47,32 @@ const UploadPage = () => {
         setSuccessMessage(null);
 
         try {
-            // await uploadDocument(file, documentType);
+            // Find logged-in user's ID
+            const loggedInUsername = getCookie('username');
+            const usersResponse = await getAllUsers();
+            const usersList = usersResponse.users || [];
+            const currentUser = usersList.find(u => u.username === loggedInUsername);
             
-            // Mocking local storage save
-            const newDoc = {
-                docId: Date.now(),
-                fileName: file.name,
-                documentType: documentType
-            };
-            const existingDocs = JSON.parse(localStorage.getItem('uploadedDocuments')) || [];
-            localStorage.setItem('uploadedDocuments', JSON.stringify([...existingDocs, newDoc]));
+            if (!currentUser) {
+                throw new Error("Could not find your user ID on the server.");
+            }
+
+            await uploadDocument(file, documentType, currentUser.id);
 
             setSuccessMessage('Document uploaded successfully!');
             setFile(null);
             document.getElementById('file-upload').value = '';
             fetchDocuments(); // Refresh table
         } catch (err) {
-            setError(err.message || 'Failed to upload document.');
+            let errorMessage = 'Failed to upload document.';
+            if (err.response?.data) {
+                errorMessage = typeof err.response.data === 'string' 
+                    ? err.response.data 
+                    : err.response.data.message || JSON.stringify(err.response.data);
+            } else if (err.message) {
+                errorMessage = err.message;
+            }
+            setError(errorMessage);
         } finally {
             setLoading(false);
         }
@@ -184,9 +193,9 @@ const UploadPage = () => {
                                             </tr>
                                         ) : (
                                             documents.map((doc) => (
-                                                <tr key={doc.docId}>
+                                                <tr key={doc.doc_id || doc.docId}>
                                                     <td className="px-6 py-4 whitespace-nowrap text-sm font-medium text-gray-900">
-                                                        {doc.docId}
+                                                        {doc.doc_id || doc.docId}
                                                     </td>
                                                     <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-500">
                                                         {doc.fileName}
