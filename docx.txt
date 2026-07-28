@@ -1,0 +1,72 @@
+Project Name: Compliq
+Domain: Procurement Compliance & Risk Analysis System
+
+1. Overview
+Compliq is an intelligent backend platform designed to streamline and automate procurement compliance. When organizations deal with vendors, they generate vast amounts of unstructured documents (Invoices, Purchase Orders, and Contracts).
+
+Compliq's primary goal is to take these unstructured documents, extract meaningful structured data from them, validate that data against complex business rules to ensure compliance, and leverage Generative AI to provide advanced risk assessments and contract summaries. It bridges the gap between raw document processing and intelligent business insights.
+
+Core Tech Stack:
+
+Java 17 & Spring Boot: Core framework (Web, Data JPA, Security, Validation).
+Database: MySQL (relational data mapping).
+Authentication: JWT (JSON Web Tokens) with Spring Security.
+Document Processing: AWS S3 (storage), Tesseract OCR / AWS Textract (Optical Character Recognition).
+Business Rules Engine: Drools (for complex validation logic).
+Generative AI: Spring AI integrated with Google Gemini (GenAI).
+
+2. Architecture
+The application follows a robust, layered N-Tier Architecture adhering to MVC principles:
+
+Controllers (com.smit.compliq.controller): Expose REST APIs for the frontend. Includes DocumentController (file uploads/processing), AIController (AI insights), AuthController (login/register), and others for domain entities (Vendors, Users, Reports).
+Service Layer (com.smit.compliq.service): Contains the core business logic, strongly decoupled using Interfaces and Impl classes.
+Storage: S3Service handles file operations with AWS.
+Extraction: OCRService extracts raw text, and ExtractionService parses it into structured fields.
+Validation: ValidationService prepares data contexts to be evaluated by the Drools Rules Engine (RuleExecutionService).
+AI Intelligence: AIAnalysisService and GeminiAIService construct prompts and communicate with the Google Gemini LLM.
+Repository Layer (com.smit.compliq.repository): Spring Data JPA interfaces for seamless, boilerplate-free database operations.
+Entity Layer (com.smit.compliq.entity): JPA models representing the database schema (e.g., Document, Invoice, PurchaseOrder, Contract, ExtractedDocument, Vendor).
+DTO Layer (com.smit.compliq.dto): Data Transfer Objects used to shape the data returned to the client (e.g., RiskAssessmentDTO, ContractSummaryDTO), ensuring API contracts are clean and decoupled from database entities.
+3. Application Flow
+Here is the step-by-step lifecycle of how a document is processed within the system:
+
+Phase 1: Upload & Ingestion
+A user uploads a PDF or Image via the DocumentController (/api/documents/upload).
+The application saves the file to AWS S3 using S3Service and creates a Document record in the MySQL database to track its metadata and status (e.g., PENDING).
+
+Phase 2: OCR & Data Extraction
+The user triggers processing on the document. The ExtractionService takes over.
+It utilizes the OCRService (powered by Tesseract/Textract) to read the physical file and convert it into a raw string of text (ExtractedDocument).
+The system then runs Regex-based parsers tailored to the specific DocumentType (Invoice, PO, or Contract) to extract structured key-value pairs (e.g., mapping "Invoice No: 1234" to an ExtractedField entity).
+This extracted data is persisted into domain-specific entities (like the Invoice or Contract table) via the DocumentDataPersistenceService.
+
+Phase 3: Rule-Based Validation (Drools)
+To ensure compliance, the system must cross-reference documents. For example, does the Invoice amount match the Purchase Order amount? Is the Vendor active in the Contract?
+The ValidationService gathers the relevant Invoice, PurchaseOrder, Contract, and Vendor entities from the database.
+It bundles them into a ValidationContext and inserts them into a Drools KieSession.
+The Drools engine fires pre-defined .drl rules against these Java objects. If any rules are broken (e.g., price mismatch), it generates a ValidationResult containing specific violations.
+
+Phase 4: AI Analysis
+For heavy textual documents like Contracts, the user can request AI insights.
+The AIAnalysisService retrieves the raw text extracted during Phase 2.
+It communicates with the LLM to generate summaries, flag missing legal clauses, and provide an overall risk assessment.
+
+
+4. AI Application & Implementation
+The AI implementation is a standout feature of this project because it uniquely combines deterministic business rules (Drools) with probabilistic AI analysis (Gemini).
+
+How it works:
+
+Spring AI Integration: The project utilizes the spring-ai-starter-model-google-genai dependency, which abstracts the complexity of calling the Gemini API. The GeminiAIService uses the ChatClient to execute prompts seamlessly.
+Prompt Engineering (AIAnalysisService):
+Contract Summarization: Injects the extracted text into a predefined prompt (AIPrompts.contractSummaryPrompt) to get a structured JSON response detailing the contract duration, purpose, obligations, and payment terms.
+Clause Analysis: Asks the AI to read the contract and return a list of present vs. missing mandatory clauses.
+Comprehensive Risk Assessment: This is the most advanced feature. The service constructs a prompt that feeds the AI three things:
+The AI-generated Contract Summary.
+The missing clauses identified by the AI.
+The deterministic violations generated by the Drools rules engine.
+By combining rule-based violations with context-aware AI text analysis, the prompt forces the LLM to return a highly accurate, structured JSON (RiskAssessmentDTO) containing a riskLevel (LOW, MEDIUM, HIGH), identified risks, and actionable recommendations.
+
+Interview Tip:
+If asked about why you used both Drools and AI, you can explain:
+"I used Drools for deterministic validation (like making sure 100 dollars on an invoice matches 100 dollars on a PO)—things that are binary and require 100% accuracy. I used Generative AI for semantic and contextual analysis (like summarizing a 50-page contract or assessing overall risk). Combining the outputs of the rigid rules engine with the contextual understanding of the LLM provides a much more powerful and accurate risk assessment."

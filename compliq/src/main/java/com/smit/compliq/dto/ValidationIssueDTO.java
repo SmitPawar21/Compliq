@@ -16,14 +16,6 @@ public class ValidationIssueDTO {
 
     private Severity severity;
     
-    public ValidationIssueDTO() {}
-
-	public ValidationIssueDTO(String ruleName, String message, Severity severity) {
-		super();
-		this.ruleName = ruleName;
-		this.message = message;
-		this.severity = severity;
-	}
 
 	public String getRuleName() {
 		return ruleName;

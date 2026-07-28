@@ -35,15 +35,6 @@ public class DocumentDataPersistenceServiceImpl implements DocumentDataPersisten
     private final VendorRepostiory vendorRepository;
     private final ExtractedFieldRepository extractedFieldRepository;
     
-	public DocumentDataPersistenceServiceImpl(InvoiceRepository invoiceRepository,
-			PurchaseOrderRepository purchaseOrderRepository, ContractRepository contractRepository, VendorRepostiory vendorRepository, ExtractedFieldRepository extractedFieldRepository) {
-		super();
-		this.invoiceRepository = invoiceRepository;
-		this.purchaseOrderRepository = purchaseOrderRepository;
-		this.contractRepository = contractRepository;
-		this.vendorRepository = vendorRepository;
-		this.extractedFieldRepository = extractedFieldRepository;
-	}
 	
 	private String getFieldValue(Document document, String fieldName) {
 	    return extractedFieldRepository.findByDocumentAndFieldName(document, fieldName)

@@ -11,9 +11,6 @@ import lombok.RequiredArgsConstructor;
 public class RuleExecutionService {
 	private final KieContainer kieContainer;
 	
-	public RuleExecutionService(KieContainer kieContainer) {
-		this.kieContainer = kieContainer;
-	}
 
 	public ValidationResult validate(ValidationContext context) {
 

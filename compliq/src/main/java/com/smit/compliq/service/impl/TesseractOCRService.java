@@ -21,10 +21,6 @@ public class TesseractOCRService implements OCRService {
 
     private final S3Service s3Service;
 
-    public TesseractOCRService(S3Service s3Service) {
-		super();
-		this.s3Service = s3Service;
-	}
 
 	@Override
     public String extractText(Document document) {

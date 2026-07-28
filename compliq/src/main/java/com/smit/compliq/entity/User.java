@@ -11,6 +11,8 @@ import jakarta.persistence.Enumerated;
 import jakarta.persistence.GeneratedValue;
 import jakarta.persistence.GenerationType;
 import jakarta.persistence.Id;
+import jakarta.persistence.JoinColumn;
+import jakarta.persistence.ManyToOne;
 import jakarta.persistence.Table;
 
 @Entity
@@ -32,18 +34,22 @@ public class User {
 	@Enumerated(EnumType.STRING)
 	private Role role;
 	
+	@ManyToOne
+	@JoinColumn(name = "organization_id")
+	private Organization organization;
 	
 	@Column
 	private Date createdAt;
 	
 	public User() {}
 
-	public User(String username, String email, String password, Role role, Date createdAt) {
+	public User(String username, String email, String password, Role role, Organization organization, Date createdAt) {
 		super();
 		this.username = username;
 		this.email = email;
 		this.password = password;
 		this.role = role;
+		this.organization = organization;
 		this.createdAt = createdAt;
 	}
 
@@ -83,6 +89,14 @@ public class User {
 		this.role = role;
 	}
 
+	public Organization getOrganization() {
+		return organization;
+	}
+
+	public void setOrganization(Organization organization) {
+		this.organization = organization;
+	}
+
 	public Date getCreatedAt() {
 		return createdAt;
 	}
@@ -90,6 +104,4 @@ public class User {
 	public void setCreatedAt(Date createdAt) {
 		this.createdAt = createdAt;
 	}
-	
-	
 }

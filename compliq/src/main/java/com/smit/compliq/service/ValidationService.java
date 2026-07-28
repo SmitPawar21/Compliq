@@ -33,18 +33,6 @@ public class ValidationService {
     private PurchaseOrderRepository poRepository;
     private ContractRepository contractRepository;
     
-    public ValidationService() {}
-    
-	public ValidationService(RuleExecutionService ruleExecutionService, DocumentRepository documentRepository,
-			InvoiceRepository invoiceRepository, PurchaseOrderRepository poRepository,
-			ContractRepository contractRepository) {
-		super();
-		this.ruleExecutionService = ruleExecutionService;
-		this.documentRepository = documentRepository;
-		this.invoiceRepository = invoiceRepository;
-		this.poRepository = poRepository;
-		this.contractRepository = contractRepository;
-	}
 
 	public ValidationResultDTO validateDocument(long invoiceDocId,long poDocId,long contractDocId) {
 

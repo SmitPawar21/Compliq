@@ -19,11 +19,6 @@ public class ComplianceReportService {
 	private final ValidationService validationService;
     private final AIAnalysisService aiAnalysisService;
     
-	public ComplianceReportService(ValidationService validationService, AIAnalysisService aiAnalysisService) {
-		super();
-		this.validationService = validationService;
-		this.aiAnalysisService = aiAnalysisService;
-	}
     
 	public ComplianceReportDTO generateReport(ComplianceReportRequest request) {
 		
