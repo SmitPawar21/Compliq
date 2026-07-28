@@ -1,0 +1,62 @@
+# Enterprise RAG Implementation Guide
+
+This document summarizes the 6-step roadmap executed to transform the Compliq monolithic AI layer into an enterprise-grade, Multi-Tenant SaaS Retrieval-Augmented Generation (RAG) architecture.
+
+---
+
+## 1. Knowledge Base & Vector Store
+**Goal:** Empower the AI with organizational context by converting uploaded documents into searchable embeddings.
+
+- **Dual-Database Architecture:** We retained the primary MySQL database for application state while introducing a secondary PostgreSQL database equipped with the `pgvector` extension specifically optimized for high-dimensional vector storage.
+- **Document Ingestion:** Implemented a pipeline utilizing `KnowledgeBaseDocumentLoader` to parse text from uploaded PDFs.
+- **Chunking Strategy:** Employed a `ChunkService` to divide massive documents into smaller, context-aware semantic chunks.
+- **Embedding Generation:** Used Google Gemini's `text-embedding-004` model via Spring AI to convert the text chunks into vectors, mapping them into the `vector_store` table with organizational metadata for tenant isolation.
+
+---
+
+## 2. The Retrieval Layer
+**Goal:** Enable accurate, filtered semantic searches against the vector store to assemble relevant context.
+
+- **Similarity Search:** Built `VectorStoreService` to execute cosine similarity searches against the PostgreSQL database.
+- **Metadata Filtering:** Leveraged Spring AI's Filter Expressions (e.g., `organizationId == X`) to ensure strict multi-tenant isolation, guaranteeing one tenant cannot retrieve another's confidential data.
+- **Context Assembly:** Implemented `ContextAssembler` to cleanly format and concatenate the retrieved chunks into a structured prompt, rather than blindly dumping raw text into the LLM.
+
+---
+
+## 3. AI Workflow Refactoring
+**Goal:** Dissolve the tightly coupled monolithic architecture into a modular, testable pipeline.
+
+- **Decoupling Services:** Broke down the monolithic `AIAnalysisService` into single-responsibility components:
+  - `SummaryService`: Dedicated to extracting contract summaries.
+  - `ClauseExtractionService`: Dedicated to identifying present and missing legal clauses.
+  - `RiskAnalysisService`: Dedicated to computing overall risk based on aggregated inputs.
+- **The Orchestrator:** Introduced `AIWorkflowService` to act as the pipeline coordinator. It runs the services in a deterministic sequence, aggregating their outputs into a final `WorkflowResultDTO`. This ensures that if the Summary Prompt needs tuning, the Risk Analysis logic remains completely unaffected.
+
+---
+
+## 4. Hybrid Retrieval & Reranking
+**Goal:** Overcome the limitations of pure semantic search by combining conceptual meaning with exact keyword matching.
+
+- **PostgreSQL Full-Text Search:** Added a Lexical retrieval leg (BM25 alternative) to the `VectorStoreService` using native Postgres `tsvector` and `plainto_tsquery`. This excels at finding exact terms like "GST 18%" or specific clause numbers.
+- **Hybrid Fusion:** Modified the retrieval pipeline to run both Vector (Semantic) and Keyword (Lexical) searches concurrently.
+- **Reciprocal Rank Fusion (RRF):** Implemented the RRF algorithm (`Score = 1.0 / (60 + rank)`) to mathematically merge the two result sets. The chunks are de-duplicated via content hashing and reranked, ensuring the LLM reads the absolute highest-quality context first.
+
+---
+
+## 5. Enterprise Guardrails
+**Goal:** Ensure the AI's output is reliable, strictly formatted, and immune to hallucinations.
+
+- **Structured Output Validation & Retry:** Introduced a central `generateStructuredResponse` method in the `GeminiAIService`. If the LLM generates broken JSON, the system catches the `ObjectMapper` exception and triggers an automatic repair prompt, allowing the LLM up to two attempts to correct its syntax before failing gracefully.
+- **Citation Requirements:** Updated all system prompts to mandate inline evidence. The LLM must now justify every finding (e.g., *"Missing Penalty Clause. Evidence: Procurement Policy Section 4.2"*).
+- **Anti-Hallucination:** Appended strict rules forcing the LLM to output `"NOT FOUND"` rather than fabricating answers if the required data does not exist within the retrieved chunks.
+- **Confidence Scoring:** The LLM now calculates and returns a `confidenceScore` (0-100) alongside its final risk assessment, giving human auditors a metric for how thoroughly the retrieved context satisfied the prompt.
+
+---
+
+## 6. Observability & Monitoring
+**Goal:** Introduce caching to cut API costs and implement tracing for production debugging.
+
+- **Response Caching:** Added Spring's `@EnableCaching` and applied `@Cacheable` to the `AIWorkflowService.runWorkflow` orchestrator. Because uploaded contracts are immutable, duplicate requests for the same document bypass the database and LLM entirely, returning in milliseconds.
+- **ThreadLocal Diagnostic Logger:** Created `DiagnosticContextHolder` to aggregate metrics across the highly decoupled services without polluting method signatures.
+- **Production Metrics:** Wrapped the Vector Store searches and Gemini API calls in Spring `StopWatch` tasks. Additionally, we extract `ChatResponse` metadata to tally exactly how many Prompt and Completion tokens were consumed.
+- **Unified Output:** At the end of every workflow, the orchestrator prints a clean SLF4J diagnostic log (Request ID, Retrieval Time, Extracted Chunks, LLM Generation Time, and Token Usage) to drastically simplify performance monitoring and cost analysis.
