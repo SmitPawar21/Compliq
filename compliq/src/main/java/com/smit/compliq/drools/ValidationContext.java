@@ -25,6 +25,19 @@ public class ValidationContext {
 		this.vendor = vendor;
 		this.validationResult = new ValidationResult();
 	}
+
+	public com.smit.compliq.entity.Organization getOrganization() {
+        if (invoice != null && invoice.getDocument() != null) {
+            return invoice.getDocument().getOrganization();
+        }
+        if (po != null && po.getDocument() != null) {
+            return po.getDocument().getOrganization();
+        }
+        if (contract != null && contract.getDocument() != null) {
+            return contract.getDocument().getOrganization();
+        }
+        return null;
+    }
 	
 	public ValidationResult getValidationResult() {
         return validationResult;

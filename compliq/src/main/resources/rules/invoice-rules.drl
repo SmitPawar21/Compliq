@@ -6,6 +6,7 @@ import com.smit.compliq.entity.Contract;
 import com.smit.compliq.drools.ValidationContext;
 import com.smit.compliq.drools.ValidationIssue;
 import com.smit.compliq.enums.Severity;
+import com.smit.compliq.entity.RuleConfiguration;
 
 global ValidationContext validationContext;
 
@@ -38,6 +39,7 @@ end
 
 rule "Invoice Variance Threshold"
 when
+    $config : RuleConfiguration(ruleName == "Invoice Variance Threshold", enabled == true, $val : conditionValue)
     $invoice : Invoice(
         $amount : totalAmount
     )
@@ -48,11 +50,11 @@ when
     )
 
     eval(
-        (($amount - $poAmount) / $poAmount) > 0.02
+        (($amount - $poAmount) / $poAmount) > Double.parseDouble($val)
     )
 then
     validationContext.getValidationResult().addViolation(
-        new ValidationIssue("Invoice Variance Threshold", "Invoice exceeds PO by more than 2%", Severity.MEDIUM));
+        new ValidationIssue("Invoice Variance Threshold", "Invoice exceeds PO by more than " + (Double.parseDouble($val) * 100) + "%", $config.getSeverity()));
 end
 
 rule "Invoice Date After PO Date"

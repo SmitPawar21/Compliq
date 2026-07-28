@@ -3,8 +3,6 @@ package com.smit.compliq.dto;
 import java.util.Date;
 
 import com.smit.compliq.enums.DocumentType;
-import com.smit.compliq.enums.ProcessingStatus;
-
 import jakarta.validation.constraints.NotBlank;
 
 public class DocumentDTO {

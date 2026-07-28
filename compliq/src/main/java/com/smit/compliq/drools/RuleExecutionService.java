@@ -10,6 +10,7 @@ import lombok.RequiredArgsConstructor;
 @RequiredArgsConstructor
 public class RuleExecutionService {
 	private final KieContainer kieContainer;
+	private final com.smit.compliq.repository.RuleConfigurationRepository ruleConfigRepo;
 	
 
 	public ValidationResult validate(ValidationContext context) {
@@ -36,6 +37,14 @@ public class RuleExecutionService {
 	        if (context.getVendor() != null) {
 	            kieSession.insert(
 	                    context.getVendor());
+	        }
+	        
+	        com.smit.compliq.entity.Organization org = context.getOrganization();
+	        if (org != null) {
+	            java.util.List<com.smit.compliq.entity.RuleConfiguration> configs = ruleConfigRepo.findByOrganization(org);
+	            for (com.smit.compliq.entity.RuleConfiguration config : configs) {
+	                kieSession.insert(config);
+	            }
 	        }
 	        
 	        kieSession.setGlobal("validationContext", context);
