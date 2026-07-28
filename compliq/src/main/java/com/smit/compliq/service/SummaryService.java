@@ -30,7 +30,7 @@ public class SummaryService {
 				.orElseThrow(() -> new DocumentNotFoundException("Document not found with this id: "+docId));
 
 		String query = "contract obligations, termination clauses, financial terms, payment, SLA, scope of work";
-		java.util.List<org.springframework.ai.document.Document> relevantChunks = vectorStoreService.similaritySearch(query, doc.getOrganization().getId());
+		java.util.List<org.springframework.ai.document.Document> relevantChunks = vectorStoreService.hybridSearch(query, doc.getOrganization().getId());
 		String assembledContext = contextAssembler.assembleContext(relevantChunks);
 		
 		String prompt = com.smit.compliq.prompts.AIPrompts.contractSummaryPrompt.concat("\n\n").concat(assembledContext);
