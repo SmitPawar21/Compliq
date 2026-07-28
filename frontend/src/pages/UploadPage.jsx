@@ -1,5 +1,5 @@
 import { useState, useEffect } from 'react';
-import { uploadDocument, getDocuments, getAllUsers } from '../services/api';
+import { uploadDocument, getDocuments, getAllUsers, getRules, updateRule } from '../services/api';
 import { getCookie } from '../utils/cookies';
 
 const UploadPage = () => {
@@ -10,6 +10,8 @@ const UploadPage = () => {
     const [fetchLoading, setFetchLoading] = useState(true);
     const [error, setError] = useState(null);
     const [successMessage, setSuccessMessage] = useState(null);
+    const [rules, setRules] = useState([]);
+    const [rulesLoading, setRulesLoading] = useState(false);
 
     const fetchDocuments = async () => {
         setFetchLoading(true);
@@ -25,9 +27,46 @@ const UploadPage = () => {
         }
     };
 
+    const fetchRules = async () => {
+        setRulesLoading(true);
+        try {
+            const data = await getRules();
+            setRules(data);
+        } catch (err) {
+            console.error('Failed to fetch rules', err);
+        } finally {
+            setRulesLoading(false);
+        }
+    };
+
     useEffect(() => {
         fetchDocuments();
+        fetchRules();
     }, []);
+
+    const handleRuleToggle = async (ruleId, currentStatus) => {
+        const ruleToUpdate = rules.find(r => r.id === ruleId);
+        if (!ruleToUpdate) return;
+        try {
+            await updateRule(ruleId, { ...ruleToUpdate, enabled: !currentStatus });
+            fetchRules();
+        } catch (err) {
+            console.error('Failed to update rule', err);
+            alert('Failed to update rule. Make sure you are an ADMIN.');
+        }
+    };
+
+    const handleRuleValueChange = async (ruleId, newValue) => {
+        const ruleToUpdate = rules.find(r => r.id === ruleId);
+        if (!ruleToUpdate) return;
+        try {
+            await updateRule(ruleId, { ...ruleToUpdate, conditionValue: newValue });
+            fetchRules();
+        } catch (err) {
+            console.error('Failed to update rule', err);
+            alert('Failed to update rule. Make sure you are an ADMIN.');
+        }
+    };
 
     const handleFileChange = (e) => {
         if (e.target.files.length > 0) {
@@ -213,6 +252,63 @@ const UploadPage = () => {
                             </div>
                         </div>
                     </div>
+                </div>
+            </div>
+
+            {/* Compliance Rule Settings */}
+            <div className="bg-white shadow overflow-hidden sm:rounded-lg mt-8">
+                <div className="px-4 py-5 sm:px-6 border-b border-gray-200 flex justify-between items-center">
+                    <h3 className="text-lg leading-6 font-medium text-gray-900">Compliance Rule Settings</h3>
+                    <button onClick={fetchRules} className="text-indigo-600 hover:text-indigo-900 text-sm font-medium">Refresh</button>
+                </div>
+                <div className="px-4 py-5 sm:p-6">
+                    {rulesLoading ? (
+                        <p className="text-sm text-gray-500">Loading rules...</p>
+                    ) : rules.length === 0 ? (
+                        <p className="text-sm text-gray-500">No rule configurations found for your organization.</p>
+                    ) : (
+                        <div className="space-y-6">
+                            {rules.map((rule) => (
+                                <div key={rule.id} className="flex items-center justify-between border-b border-gray-100 pb-4 last:border-b-0 last:pb-0">
+                                    <div className="flex-1">
+                                        <h4 className="text-sm font-medium text-gray-900">{rule.ruleName}</h4>
+                                        <p className="text-sm text-gray-500 mt-1">Severity: {rule.severity}</p>
+                                    </div>
+                                    <div className="flex items-center space-x-4">
+                                        <div className="flex items-center">
+                                            <label htmlFor={`conditionValue-${rule.id}`} className="sr-only">Value</label>
+                                            <input
+                                                id={`conditionValue-${rule.id}`}
+                                                type="text"
+                                                defaultValue={rule.conditionValue}
+                                                onBlur={(e) => {
+                                                    if (e.target.value !== rule.conditionValue) {
+                                                        handleRuleValueChange(rule.id, e.target.value);
+                                                    }
+                                                }}
+                                                className="shadow-sm focus:ring-indigo-500 focus:border-indigo-500 block w-24 sm:text-sm border-gray-300 rounded-md py-1.5 px-3 border"
+                                                title="Condition Value"
+                                            />
+                                        </div>
+                                        <button
+                                            onClick={() => handleRuleToggle(rule.id, rule.enabled)}
+                                            className={`${
+                                                rule.enabled ? 'bg-indigo-600' : 'bg-gray-200'
+                                            } relative inline-flex flex-shrink-0 h-6 w-11 border-2 border-transparent rounded-full cursor-pointer transition-colors ease-in-out duration-200 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-indigo-500`}
+                                        >
+                                            <span className="sr-only">Use setting</span>
+                                            <span
+                                                aria-hidden="true"
+                                                className={`${
+                                                    rule.enabled ? 'translate-x-5' : 'translate-x-0'
+                                                } pointer-events-none inline-block h-5 w-5 rounded-full bg-white shadow transform ring-0 transition ease-in-out duration-200`}
+                                            />
+                                        </button>
+                                    </div>
+                                </div>
+                            ))}
+                        </div>
+                    )}
                 </div>
             </div>
         </div>

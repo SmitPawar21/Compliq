@@ -1,12 +1,14 @@
 import { useState } from 'react';
 import { useNavigate, Link } from 'react-router-dom';
-import { register } from '../services/api';
+import { register, login } from '../services/api';
+import { setCookie } from '../utils/cookies';
 
 const RegisterPage = () => {
     const [username, setUsername] = useState('');
     const [email, setEmail] = useState('');
     const [password, setPassword] = useState('');
     const [role, setRole] = useState('ADMIN'); // Default role
+    const [organizationName, setOrganizationName] = useState('');
     const [error, setError] = useState(null);
     const [loading, setLoading] = useState(false);
     const navigate = useNavigate();
@@ -17,9 +19,15 @@ const RegisterPage = () => {
         setLoading(true);
 
         try {
-            await register(username, email, password, role);
-            // Optionally auto-login, but typically redirect to login page
-            navigate('/login');
+            await register(username, email, password, role, organizationName);
+            
+            // Auto-login
+            const loginData = await login(username, password);
+            setCookie('token', loginData.token, 7);
+            setCookie('username', loginData.username, 7);
+            
+            navigate('/upload');
+            window.location.reload(); // Quick way to update navbar state
         } catch (err) {
             console.error("Registration error:", err.response);
             let errorMessage = 'Registration failed.';
@@ -100,7 +108,7 @@ const RegisterPage = () => {
                             <select
                                 id="role"
                                 name="role"
-                                className="appearance-none rounded-none relative block w-full px-3 py-2 border border-gray-300 placeholder-gray-500 text-gray-900 rounded-b-md focus:outline-none focus:ring-indigo-500 focus:border-indigo-500 focus:z-10 sm:text-sm"
+                                className="appearance-none rounded-none relative block w-full px-3 py-2 border border-gray-300 placeholder-gray-500 text-gray-900 focus:outline-none focus:ring-indigo-500 focus:border-indigo-500 focus:z-10 sm:text-sm"
                                 value={role}
                                 onChange={(e) => setRole(e.target.value)}
                             >
@@ -109,6 +117,19 @@ const RegisterPage = () => {
                                 <option value="PROCUREMENT_MANAGER">Procurement Manager</option>
                                 <option value="AUDITOR">Auditor</option>
                             </select>
+                        </div>
+                        <div>
+                            <label htmlFor="organizationName" className="sr-only">Organization Name</label>
+                            <input
+                                id="organizationName"
+                                name="organizationName"
+                                type="text"
+                                required
+                                className="appearance-none rounded-none relative block w-full px-3 py-2 border border-gray-300 placeholder-gray-500 text-gray-900 rounded-b-md focus:outline-none focus:ring-indigo-500 focus:border-indigo-500 focus:z-10 sm:text-sm"
+                                placeholder="Organization Name"
+                                value={organizationName}
+                                onChange={(e) => setOrganizationName(e.target.value)}
+                            />
                         </div>
                     </div>
 

@@ -7,4 +7,5 @@ import com.smit.compliq.entity.Organization;
 
 @Repository
 public interface OrganizationRepository extends JpaRepository<Organization, Long> {
+	java.util.Optional<Organization> findByName(String name);
 }

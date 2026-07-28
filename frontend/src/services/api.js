@@ -53,7 +53,17 @@ export const login = async (username, password) => {
     return response.data;
 };
 
-export const register = async (username, email, password, role) => {
-    const response = await axios.post(`${API_URL}/auth/register`, { username, email, password, role });
+export const register = async (username, email, password, role, organizationName) => {
+    const response = await axios.post(`${API_URL}/auth/register`, { username, email, password, role, organizationName });
+    return response.data;
+};
+
+export const getRules = async () => {
+    const response = await apiClient.get(`/rules/`);
+    return response.data;
+};
+
+export const updateRule = async (id, data) => {
+    const response = await apiClient.put(`/rules/${id}`, data);
     return response.data;
 };

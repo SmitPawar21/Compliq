@@ -24,6 +24,17 @@ public class RegisterDTO {
 	
 	private Date createdAt;
 
+	@NotBlank
+	private String organizationName;
+
+	public String getOrganizationName() {
+		return organizationName;
+	}
+
+	public void setOrganizationName(String organizationName) {
+		this.organizationName = organizationName;
+	}
+
 	public String getUsername() {
 		return username;
 	}
