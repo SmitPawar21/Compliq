@@ -70,3 +70,7 @@ By combining rule-based violations with context-aware AI text analysis, the prom
 Interview Tip:
 If asked about why you used both Drools and AI, you can explain:
 "I used Drools for deterministic validation (like making sure 100 dollars on an invoice matches 100 dollars on a PO)—things that are binary and require 100% accuracy. I used Generative AI for semantic and contextual analysis (like summarizing a 50-page contract or assessing overall risk). Combining the outputs of the rigid rules engine with the contextual understanding of the LLM provides a much more powerful and accurate risk assessment."
+
+IMPORTANT:
+
+Before running the Spring Boot application locally, make sure you have a PostgreSQL instance running on port 5432 with the pgvector extension installed, and a database named compliq_vector initialized!

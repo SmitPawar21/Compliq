@@ -1,6 +1,8 @@
 package com.smit.compliq.service;
 
 import java.util.Date;
+import java.util.List;
+import java.util.Set;
 
 import org.springframework.stereotype.Service;
 import org.springframework.web.multipart.MultipartFile;
@@ -14,18 +16,24 @@ import com.smit.compliq.exception.UserNotFoundException;
 import com.smit.compliq.repository.DocumentRepository;
 import com.smit.compliq.repository.UserRepository;
 
-import java.util.*;
 
 @Service
 public class DocumentService {
 	private final DocumentRepository documentRepository;
 	private final UserRepository userRepository;
 	private final S3Service s3Service;
+	private final KnowledgeBaseDocumentLoader documentLoader;
+	private final ChunkService chunkService;
+	private final VectorStoreService vectorStoreService;
 	
-	public DocumentService (DocumentRepository documentRepository, UserRepository userRepository, S3Service s3Service) {
+	public DocumentService (DocumentRepository documentRepository, UserRepository userRepository, S3Service s3Service,
+			KnowledgeBaseDocumentLoader documentLoader, ChunkService chunkService, VectorStoreService vectorStoreService) {
 		this.documentRepository = documentRepository;
 		this.userRepository = userRepository;
 		this.s3Service = s3Service;
+		this.documentLoader = documentLoader;
+		this.chunkService = chunkService;
+		this.vectorStoreService = vectorStoreService;
 	}
 	
 	private static final long MAX_FILE_SIZE =
@@ -84,7 +92,20 @@ public class DocumentService {
 	    newDoc.setUploadDate(new Date());
 	    newDoc.setUploadedBy(user);
 
-	    return documentRepository.save(newDoc);
+	    Document savedDoc = documentRepository.save(newDoc);
+		
+		if ("application/pdf".equals(file.getContentType())) {
+			try {
+				List<org.springframework.ai.document.Document> aiDocs = 
+					documentLoader.loadPdfAndExtractMetadata(file.getInputStream(), user.getOrganization(), savedDoc.getDoc_id(), documentType.name());
+				List<org.springframework.ai.document.Document> chunks = chunkService.chunkDocuments(aiDocs);
+				vectorStoreService.storeDocuments(chunks);
+			} catch(Exception e) {
+				e.printStackTrace();
+			}
+		}
+
+	    return savedDoc;
 	}
 	
 	public List<Document> getAllDocuments() {
