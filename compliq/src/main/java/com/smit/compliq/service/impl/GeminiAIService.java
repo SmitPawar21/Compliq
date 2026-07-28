@@ -1,11 +1,15 @@
 package com.smit.compliq.service.impl;
 
 import org.springframework.ai.chat.client.ChatClient;
+import org.springframework.ai.chat.metadata.Usage;
+import org.springframework.ai.chat.model.ChatResponse;
 import org.springframework.stereotype.Service;
+import org.springframework.util.StopWatch;
 
+import com.fasterxml.jackson.databind.ObjectMapper;
 import com.smit.compliq.exception.AIGenerationException;
 import com.smit.compliq.service.AIService;
-import com.fasterxml.jackson.databind.ObjectMapper;
+import com.smit.compliq.service.DiagnosticContextHolder;
 
 @Service
 public class GeminiAIService implements AIService {
@@ -36,8 +40,17 @@ public class GeminiAIService implements AIService {
         String currentPrompt = prompt;
 
         while (attempts < maxRetries) {
+            StopWatch sw = new StopWatch();
+            sw.start("LLM Generation");
             try {
-                String response = this.chatClient.prompt().user(currentPrompt).call().content();
+                ChatResponse chatResponse = this.chatClient.prompt().user(currentPrompt).call().chatResponse();
+                String response = chatResponse.getResult().getOutput().getText();
+                
+                sw.stop();
+                Usage usage = chatResponse.getMetadata().getUsage();
+                long pTokens = usage != null ? usage.getPromptTokens() : 0;
+                long gTokens = usage != null ? usage.getCompletionTokens() : 0;
+                DiagnosticContextHolder.getContext().addLlmCall(sw.getTotalTimeMillis(), pTokens, gTokens);
                 
                 // Clean markdown JSON wrapping if any
                 if (response.startsWith("```json")) {

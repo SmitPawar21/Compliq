@@ -7,6 +7,7 @@ import org.springframework.ai.vectorstore.SearchRequest;
 import org.springframework.ai.vectorstore.VectorStore;
 import org.springframework.jdbc.core.JdbcTemplate;
 import org.springframework.stereotype.Service;
+import org.springframework.util.StopWatch;
 
 import com.fasterxml.jackson.databind.ObjectMapper;
 import com.fasterxml.jackson.core.type.TypeReference;
@@ -62,10 +63,18 @@ public class VectorStoreService {
     }
 
     public List<Document> hybridSearch(String query, Long organizationId) {
+        StopWatch sw = new StopWatch();
+        sw.start("Hybrid Retrieval");
+        
         List<Document> vectorResults = similaritySearch(query, organizationId);
         List<Document> keywordResults = keywordSearch(query, organizationId);
         
-        return reciprocalRankFusion(vectorResults, keywordResults);
+        List<Document> results = reciprocalRankFusion(vectorResults, keywordResults);
+        
+        sw.stop();
+        DiagnosticContextHolder.getContext().addRetrieval(sw.getTotalTimeMillis(), results.size());
+        
+        return results;
     }
     
     private List<Document> reciprocalRankFusion(List<Document> vectorResults, List<Document> keywordResults) {

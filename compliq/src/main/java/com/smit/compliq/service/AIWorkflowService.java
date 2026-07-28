@@ -1,5 +1,8 @@
 package com.smit.compliq.service;
 
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
+import org.springframework.cache.annotation.Cacheable;
 import org.springframework.stereotype.Service;
 
 import com.smit.compliq.dto.ClauseAnalysisDTO;
@@ -13,15 +16,20 @@ import lombok.RequiredArgsConstructor;
 @Service
 @RequiredArgsConstructor
 public class AIWorkflowService {
+    private static final Logger log = LoggerFactory.getLogger(AIWorkflowService.class);
 
     private final ValidationService validationService;
     private final SummaryService summaryService;
     private final ClauseExtractionService clauseExtractionService;
     private final RiskAnalysisService riskAnalysisService;
 
+    @Cacheable(value = "aiWorkflow", key = "#contractDocId")
     public WorkflowResultDTO runWorkflow(long contractDocId, long invoiceDocId, long poDocId) {
-        // Step 1: Validation (Drools)
-        ValidationResultDTO validation = validationService.validateDocument(invoiceDocId, poDocId, contractDocId);
+        DiagnosticContextHolder.clearContext();
+        
+        try {
+            // Step 1: Validation (Drools)
+            ValidationResultDTO validation = validationService.validateDocument(invoiceDocId, poDocId, contractDocId);
 
         // Step 2: RAG Summary
         ContractSummaryDTO summary = summaryService.getAISummaryOfContract(contractDocId);
@@ -33,6 +41,12 @@ public class AIWorkflowService {
         RiskAssessmentDTO risk = riskAnalysisService.getRiskAssessment(validation, clauses, summary);
 
         // Aggregate results
-        return new WorkflowResultDTO(summary, clauses, validation, risk);
+        WorkflowResultDTO result = new WorkflowResultDTO(summary, clauses, validation, risk);
+        
+        log.info(DiagnosticContextHolder.getContext().getSummary());
+        return result;
+        } finally {
+            DiagnosticContextHolder.clearContext();
+        }
     }
 }
