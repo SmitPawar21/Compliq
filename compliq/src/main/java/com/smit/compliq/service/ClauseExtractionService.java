@@ -36,13 +36,14 @@ public class ClauseExtractionService {
 		String prompt = com.smit.compliq.prompts.AIPrompts.clauseAnalysisPrompt.concat("\n\n").concat(assembledContext);
 		
 		try {			
-			String jsonResponse = aiService.generateResponse(prompt);
-			ClauseAnalysisDTO response = objectMapper.readValue(jsonResponse, ClauseAnalysisDTO.class);
+			ClauseAnalysisDTO response = aiService.generateStructuredResponse(prompt, ClauseAnalysisDTO.class);
 			
-			saveClauseAnalysis(doc, response);
+			if (response != null) {
+				saveClauseAnalysis(doc, response);
+			}
 			return response;
-		} catch (JsonProcessingException e) {
-			throw new ObjectMappingException("Object Mapping Error: "+ e.getMessage());
+		} catch (Exception e) {
+			throw new ObjectMappingException("AI Generation Error: "+ e.getMessage());
 		}	
 	}
 

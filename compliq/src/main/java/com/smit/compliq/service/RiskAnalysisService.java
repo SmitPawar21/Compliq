@@ -28,12 +28,16 @@ public class RiskAnalysisService {
 
 	            {
 	              "riskLevel": "",
+	              "confidenceScore": 0,
 	              "risks": [],
 	              "recommendations": []
 	            }
 
 	            Rules:
 	            - riskLevel must be LOW, MEDIUM, or HIGH.
+	            - confidenceScore must be an integer between 0 and 100 based on context completeness.
+	            - For every risk and recommendation, append a citation referencing the exact source. (e.g. 'Evidence: Section 4.2').
+	            - If evidence does not exist inside retrieved documents, return NOT FOUND. Never fabricate.
 	            - look for financial, compliance, operational risks and list them.
 	            - recommendations should contain actionable recommendations.
 	            - Do not return markdown.
@@ -54,10 +58,9 @@ public class RiskAnalysisService {
 	    );
 		
 		try {
-	        String jsonResponse = aiService.generateResponse(prompt);
-	        return objectMapper.readValue(jsonResponse, RiskAssessmentDTO.class);
-	    } catch (JsonProcessingException e) {
-	        throw new ObjectMappingException("Failed to parse risk assessment response: "+ e.getMessage());
+	        return aiService.generateStructuredResponse(prompt, RiskAssessmentDTO.class);
+	    } catch (Exception e) {
+	        throw new ObjectMappingException("Failed to generate risk assessment response: "+ e.getMessage());
 	    }
 
 	}

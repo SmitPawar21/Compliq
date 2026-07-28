@@ -4,8 +4,16 @@ import java.util.*;
 
 public class RiskAssessmentDTO {
 	private String riskLevel;
+	private int confidenceScore;
 	private List<String> risks;
 	private List<String> recommendations;
+	
+	public int getConfidenceScore() {
+		return confidenceScore;
+	}
+	public void setConfidenceScore(int confidenceScore) {
+		this.confidenceScore = confidenceScore;
+	}
 	
 	public String getRiskLevel() {
 		return riskLevel;

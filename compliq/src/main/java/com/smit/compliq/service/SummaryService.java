@@ -36,13 +36,14 @@ public class SummaryService {
 		String prompt = com.smit.compliq.prompts.AIPrompts.contractSummaryPrompt.concat("\n\n").concat(assembledContext);
 					
 		try {			
-			String jsonResponse = aiService.generateResponse(prompt);
-			ContractSummaryDTO response = objectMapper.readValue(jsonResponse, ContractSummaryDTO.class);
+			ContractSummaryDTO response = aiService.generateStructuredResponse(prompt, ContractSummaryDTO.class);
 			
-			saveSummary(doc, response);
+			if (response != null) {
+				saveSummary(doc, response);
+			}
 			return response;
-		} catch (JsonProcessingException e) {
-			throw new ObjectMappingException("Object Mapping Error: "+ e.getMessage());
+		} catch (Exception e) {
+			throw new ObjectMappingException("AI Generation Error: "+ e.getMessage());
 		}
 	}
 
