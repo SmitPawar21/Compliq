@@ -29,31 +29,29 @@ public class AIAnalysisService {
 	private ClauseAnalysisRepository clauseAnalysisRepo;
 	private AIService aiService;
 	private final ObjectMapper objectMapper;
+	private final VectorStoreService vectorStoreService;
+	private final ContextAssembler contextAssembler;
 	
-	public AIAnalysisService(DocumentRepository docRepo, ExtractedDocumentRepository extractedDocRepo, AIService aiService, ObjectMapper objectMapper, ContractSummaryRepository conSumRepo, ClauseAnalysisRepository clauseAnalysisRepo) {
+	public AIAnalysisService(DocumentRepository docRepo, ExtractedDocumentRepository extractedDocRepo, AIService aiService, ObjectMapper objectMapper, ContractSummaryRepository conSumRepo, ClauseAnalysisRepository clauseAnalysisRepo, VectorStoreService vectorStoreService, ContextAssembler contextAssembler) {
 		this.docRepo = docRepo;
 		this.extractedDocRepo = extractedDocRepo;
 		this.aiService = aiService;
 		this.objectMapper = objectMapper;
 		this.conSumRepo = conSumRepo;
 		this.clauseAnalysisRepo = clauseAnalysisRepo;
+		this.vectorStoreService = vectorStoreService;
+		this.contextAssembler = contextAssembler;
 	}
 	
 	public ContractSummaryDTO getAISummaryOfContract(long docId) {
 		Document doc = docRepo.findById(docId)
 				.orElseThrow(() -> new DocumentNotFoundException("Document not found with this id: "+docId));
 
-		ExtractedDocument extractedDocument = extractedDocRepo.findByDocument_DocId(docId);
+		String query = "contract obligations, termination clauses, financial terms, payment, SLA, scope of work";
+		java.util.List<org.springframework.ai.document.Document> relevantChunks = vectorStoreService.similaritySearch(query, doc.getOrganization().getId());
+		String assembledContext = contextAssembler.assembleContext(relevantChunks);
 		
-		String contractExtractedText = extractedDocument.getExtractedText();
-		
-		if(contractExtractedText == null || contractExtractedText.isBlank()) {
-		    throw new AIGenerationException(
-		            "Cannot generate summary. Extracted text is empty."
-		    );
-		}
-		
-		String prompt = com.smit.compliq.prompts.AIPrompts.contractSummaryPrompt.concat(contractExtractedText);
+		String prompt = com.smit.compliq.prompts.AIPrompts.contractSummaryPrompt.concat("\n\n").concat(assembledContext);
 					
 		try {			
 			String jsonResponse = aiService.generateResponse(prompt);
@@ -70,17 +68,11 @@ public class AIAnalysisService {
 		Document doc = docRepo.findById(docId)
 				.orElseThrow(() -> new DocumentNotFoundException("Document not found with this id: "+docId));
 
-		ExtractedDocument extractedDocument = extractedDocRepo.findByDocument_DocId(docId);
+		String query = "liability, indemnification, warranty, confidentiality, dispute resolution, governing law";
+		java.util.List<org.springframework.ai.document.Document> relevantChunks = vectorStoreService.similaritySearch(query, doc.getOrganization().getId());
+		String assembledContext = contextAssembler.assembleContext(relevantChunks);
 		
-		String contractExtractedText = extractedDocument.getExtractedText();
-		
-		if(contractExtractedText == null || contractExtractedText.isBlank()) {
-		    throw new AIGenerationException(
-		            "Cannot generate summary. Extracted text is empty."
-		    );
-		}
-		
-		String prompt = com.smit.compliq.prompts.AIPrompts.clauseAnalysisPrompt.concat(contractExtractedText);
+		String prompt = com.smit.compliq.prompts.AIPrompts.clauseAnalysisPrompt.concat("\n\n").concat(assembledContext);
 		
 		try {			
 			String jsonResponse = aiService.generateResponse(prompt);
