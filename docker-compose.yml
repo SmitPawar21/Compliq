@@ -1,0 +1,89 @@
+version: '3.8'
+
+services:
+  # ---------------------------------------------------------
+  # CI/CD: Jenkins (Runs on port 8081)
+  # ---------------------------------------------------------
+  jenkins:
+    image: jenkins/jenkins:lts
+    container_name: jenkins
+    user: root # Needed to access docker socket
+    ports:
+      - "8081:8080"
+      - "50000:50000"
+    volumes:
+      - jenkins_home:/var/jenkins_home
+      - /var/run/docker.sock:/var/run/docker.sock
+      - /usr/bin/docker:/usr/bin/docker
+    restart: unless-stopped
+
+  # ---------------------------------------------------------
+  # Database: MySQL
+  # ---------------------------------------------------------
+  mysql:
+    image: mysql:8.0
+    container_name: compliq_mysql
+    environment:
+      MYSQL_ROOT_PASSWORD: ${DB_ROOT_PASSWORD:-root}
+      MYSQL_DATABASE: ${DB_NAME:-compliq_db}
+      MYSQL_USER: ${DB_USER:-compliq_user}
+      MYSQL_PASSWORD: ${DB_PASSWORD:-compliq_pass}
+    ports:
+      - "3306:3306"
+    volumes:
+      - mysql_data:/var/lib/mysql
+    restart: unless-stopped
+    healthcheck:
+      test: ["CMD", "mysqladmin", "ping", "-h", "localhost"]
+      interval: 10s
+      timeout: 5s
+      retries: 5
+
+  # ---------------------------------------------------------
+  # Backend: Java Spring Boot
+  # ---------------------------------------------------------
+  backend:
+    image: ${BACKEND_IMAGE:-compliq-backend:latest}
+    container_name: compliq_backend
+    build:
+      context: ./compliq
+      dockerfile: Dockerfile
+    environment:
+      - SPRING_DATASOURCE_URL=jdbc:mysql://mysql:3306/${DB_NAME:-compliq_db}?useSSL=false&allowPublicKeyRetrieval=true
+      - SPRING_DATASOURCE_USERNAME=${DB_USER:-compliq_user}
+      - SPRING_DATASOURCE_PASSWORD=${DB_PASSWORD:-compliq_pass}
+      # Add any other required environment variables here
+    depends_on:
+      mysql:
+        condition: service_healthy
+    restart: unless-stopped
+
+  # ---------------------------------------------------------
+  # Frontend: Vite (Nginx serving static files)
+  # ---------------------------------------------------------
+  frontend:
+    image: ${FRONTEND_IMAGE:-compliq-frontend:latest}
+    container_name: compliq_frontend
+    build:
+      context: ./frontend
+      dockerfile: Dockerfile
+    restart: unless-stopped
+
+  # ---------------------------------------------------------
+  # Reverse Proxy: Nginx (Routes traffic to frontend/backend)
+  # ---------------------------------------------------------
+  nginx:
+    image: nginx:alpine
+    container_name: compliq_nginx
+    ports:
+      - "80:80"
+    volumes:
+      - ./nginx/nginx.conf:/etc/nginx/nginx.conf:ro
+    depends_on:
+      - backend
+      - frontend
+    restart: unless-stopped
+
+volumes:
+  jenkins_home:
+  mysql_data:
