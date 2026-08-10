@@ -1,13 +1,13 @@
 pipeline {
     agent any
 
-    environment {
-        // Replace with your AWS account ID and region if using ECR
-        // AWS_ACCOUNT_ID = '123456789012'
-        // AWS_REGION = 'us-east-1'
-        // ECR_REPO_BACKEND = "${AWS_ACCOUNT_ID}.dkr.ecr.${AWS_REGION}.amazonaws.com/compliq-backend"
-        // ECR_REPO_FRONTEND = "${AWS_ACCOUNT_ID}.dkr.ecr.${AWS_REGION}.amazonaws.com/compliq-frontend"
-    }
+    // environment {
+    //     Replace with your AWS account ID and region if using ECR
+    //     AWS_ACCOUNT_ID = '123456789012'
+    //     AWS_REGION = 'us-east-1'
+    //     ECR_REPO_BACKEND = "${AWS_ACCOUNT_ID}.dkr.ecr.${AWS_REGION}.amazonaws.com/compliq-backend"
+    //     ECR_REPO_FRONTEND = "${AWS_ACCOUNT_ID}.dkr.ecr.${AWS_REGION}.amazonaws.com/compliq-frontend"
+    // }
 
     stages {
         stage('Checkout') {
