@@ -11,12 +11,12 @@ import org.springframework.ai.reader.pdf.PagePdfDocumentReader;
 import org.springframework.core.io.FileSystemResource;
 import org.springframework.stereotype.Service;
 
-import com.smit.compliq.entity.Organization;
+import com.smit.compliq.entity.User;
 
 @Service
 public class KnowledgeBaseDocumentLoader {
 
-    public List<Document> loadPdfAndExtractMetadata(InputStream pdfStream, Organization org, Long documentId, String documentType) throws Exception {
+    public List<Document> loadPdfAndExtractMetadata(InputStream pdfStream, User user, Long documentId, String documentType) throws Exception {
         // Save stream to temp file because PagePdfDocumentReader needs a Resource
         File tempFile = File.createTempFile("temp-doc-", ".pdf");
         try (FileOutputStream out = new FileOutputStream(tempFile)) {
@@ -29,9 +29,13 @@ public class KnowledgeBaseDocumentLoader {
         // Inject custom metadata
         for (Document doc : documents) {
             Map<String, Object> metadata = doc.getMetadata();
-            if (org != null) {
-                metadata.put("organizationId", org.getId());
-                metadata.put("organizationName", org.getName());
+            if (user != null) {
+                metadata.put("userId", user.getId());
+                metadata.put("username", user.getUsername());
+                if (user.getOrganization() != null) {
+                    metadata.put("organizationId", user.getOrganization().getId());
+                    metadata.put("organizationName", user.getOrganization().getName());
+                }
             }
             metadata.put("documentId", documentId);
             metadata.put("category", documentType);

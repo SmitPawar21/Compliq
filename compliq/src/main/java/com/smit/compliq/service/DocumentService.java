@@ -97,7 +97,7 @@ public class DocumentService {
 		if ("application/pdf".equals(file.getContentType())) {
 			try {
 				List<org.springframework.ai.document.Document> aiDocs = 
-					documentLoader.loadPdfAndExtractMetadata(file.getInputStream(), user.getOrganization(), savedDoc.getDoc_id(), documentType.name());
+					documentLoader.loadPdfAndExtractMetadata(file.getInputStream(), user, savedDoc.getDoc_id(), documentType.name());
 				List<org.springframework.ai.document.Document> chunks = chunkService.chunkDocuments(aiDocs);
 				vectorStoreService.storeDocuments(chunks);
 			} catch(Exception e) {

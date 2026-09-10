@@ -1,0 +1,33 @@
+# CompliQ Backend Refactoring and Chatbot Foundation
+
+We have successfully cleaned up the backend and implemented the foundational data architecture for the upcoming chatbot feature.
+
+## Changes Made
+
+### 1. Code Cleanup
+- **`DashboardController` Removed**: The empty `DashboardController` was removed from the codebase.
+- Verified that all remaining services in `com.smit.compliq.service` are in active use by existing endpoints or processes.
+
+### 2. Chatbot Data Architecture
+We created the entity and repository foundations for the conversational AI experience:
+- **`MessageRole` Enum**: Defines the sender of a message (`USER`, `AI`, `SYSTEM`).
+- **`ChatSession` Entity & Repository**: Represents an active conversation thread tied to a specific `User`.
+- **`ChatMessage` Entity & Repository**: Stores individual messages within a session, including a `metadata` JSON column for tracing and references.
+
+*Note: Per our discussion, Episodic Memory will not have a separate SQL table and will instead utilize the vector store with a different category metadata tag.*
+
+### 3. User Data Isolation
+We refactored the vector search and embedding logic to strictly scope data by `userId` rather than `organizationId`:
+- **`KnowledgeBaseDocumentLoader`**: Now accepts the `User` object directly and injects `userId` into the document metadata.
+- **`VectorStoreService`**: `similaritySearch`, `keywordSearch`, and `hybridSearch` now require a `userId` parameter and apply an isolation filter (`userId == ...`) before returning vector results.
+- **Service Updates**: `DocumentService`, `SummaryService`, and `ClauseExtractionService` were updated to pass the authenticated `User` context to the vector store.
+
+### 4. Testing
+- Added `VectorStoreIsolationTest` (Mockito) to verify that queries correctly append the `userId` filter expression.
+- Added `ChatPersistenceTest` (`@DataJpaTest`) to verify the JPA persistence and retrieval of `ChatSession` and `ChatMessage` entities.
+
+## Verification
+- Code has been successfully updated.
+- Automated tests have been executed via `mvn test` to ensure stability.
+
+Next Steps: In subsequent phases, we can build the LLM workflow and RAG retrieval pipelines on top of this isolated and persisted session architecture!

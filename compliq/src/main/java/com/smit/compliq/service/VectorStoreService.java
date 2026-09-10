@@ -26,20 +26,20 @@ public class VectorStoreService {
         vectorStore.add(chunks);
     }
 
-    public List<Document> similaritySearch(String query, Long organizationId) {
+    public List<Document> similaritySearch(String query, Long userId) {
         SearchRequest request = SearchRequest.builder()
                 .query(query)
                 .topK(10)
-                .filterExpression("organizationId == " + organizationId)
+                .filterExpression("userId == " + userId)
                 .build();
         return vectorStore.similaritySearch(request);
     }
 
-    private List<Document> keywordSearch(String query, Long organizationId) {
+    private List<Document> keywordSearch(String query, Long userId) {
         String sql = """
             SELECT id, content, metadata 
             FROM vector_store 
-            WHERE metadata->>'organizationId' = ? 
+            WHERE metadata->>'userId' = ? 
             AND to_tsvector('english', content) @@ plainto_tsquery('english', ?) 
             ORDER BY ts_rank(to_tsvector('english', content), plainto_tsquery('english', ?)) DESC 
             LIMIT 10
@@ -59,15 +59,15 @@ public class VectorStoreService {
             }
             
             return new Document(content, metadata);
-        }, organizationId.toString(), query, query);
+        }, userId.toString(), query, query);
     }
 
-    public List<Document> hybridSearch(String query, Long organizationId) {
+    public List<Document> hybridSearch(String query, Long userId) {
         StopWatch sw = new StopWatch();
         sw.start("Hybrid Retrieval");
         
-        List<Document> vectorResults = similaritySearch(query, organizationId);
-        List<Document> keywordResults = keywordSearch(query, organizationId);
+        List<Document> vectorResults = similaritySearch(query, userId);
+        List<Document> keywordResults = keywordSearch(query, userId);
         
         List<Document> results = reciprocalRankFusion(vectorResults, keywordResults);
         

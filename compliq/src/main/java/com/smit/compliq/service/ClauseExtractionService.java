@@ -30,7 +30,7 @@ public class ClauseExtractionService {
 				.orElseThrow(() -> new DocumentNotFoundException("Document not found with this id: "+docId));
 
 		String query = "liability, indemnification, warranty, confidentiality, dispute resolution, governing law";
-		java.util.List<org.springframework.ai.document.Document> relevantChunks = vectorStoreService.hybridSearch(query, doc.getOrganization().getId());
+		java.util.List<org.springframework.ai.document.Document> relevantChunks = vectorStoreService.hybridSearch(query, doc.getUploadedBy().getId());
 		String assembledContext = contextAssembler.assembleContext(relevantChunks);
 		
 		String prompt = com.smit.compliq.prompts.AIPrompts.clauseAnalysisPrompt.concat("\n\n").concat(assembledContext);
