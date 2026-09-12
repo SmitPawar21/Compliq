@@ -11,4 +11,6 @@ import java.util.List;
 @Repository
 public interface ChatSessionRepository extends JpaRepository<ChatSession, Long> {
 	List<ChatSession> findByUser(User user);
+	List<ChatSession> findByUserOrderByUpdatedAtDesc(User user);
+	java.util.Optional<ChatSession> findBySessionIdAndUser(long sessionId, User user);
 }

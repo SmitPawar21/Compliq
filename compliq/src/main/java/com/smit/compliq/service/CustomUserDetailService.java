@@ -1,7 +1,9 @@
 package com.smit.compliq.service;
 
 import java.util.Collections;
+import java.util.List;
 
+import org.springframework.security.core.authority.SimpleGrantedAuthority;
 import org.springframework.security.core.userdetails.UserDetails;
 import org.springframework.security.core.userdetails.UserDetailsService;
 import org.springframework.security.core.userdetails.UsernameNotFoundException;
@@ -24,10 +26,15 @@ public class CustomUserDetailService implements UserDetailsService {
         User user = userRepo.findByUsername(username)
             .orElseThrow(() -> new UsernameNotFoundException("User not found: " + username));
 
+        // Include user role as GrantedAuthority for role-based access control
+        List<SimpleGrantedAuthority> authorities = user.getRole() != null
+            ? List.of(new SimpleGrantedAuthority(user.getRole().name()))
+            : Collections.emptyList();
+
         return new org.springframework.security.core.userdetails.User(
             user.getUsername(),
             user.getPassword(),
-            Collections.emptyList()
+            authorities
         );
     }
 }

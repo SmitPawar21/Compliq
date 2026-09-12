@@ -1,0 +1,168 @@
+# CompliQ AI Compliance Chatbot — Walkthrough
+
+## Summary
+
+Implemented a full agentic AI compliance chatbot on top of the existing Phase 1 RAG + report-generation architecture. The chatbot uses a ReAct-style agent loop with tool calling, proper memory architecture, authorization-enforced data access, comprehensive tracing, and failure recovery.
+
+**No existing functionality was broken** — all existing endpoints (`/api/ai/workflow/`, `/api/compliance-report`, `/api/auth/`, `/api/documents/`) remain unchanged.
+
+---
+
+## Architecture Overview
+
+```mermaid
+flowchart TD
+    A["Client"] -->|"POST /api/chatbot/chat"| B["ChatbotController"]
+    B --> C["ChatbotAgentService"]
+    C --> D["QueryUnderstandingService"]
+    C --> E["MemoryService"]
+    C --> F["Agent Loop (max 5 iterations)"]
+    F --> G["GeminiAIService"]
+    F --> H["ToolExecutor"]
+    H --> I["DocumentSearchTool"]
+    H --> J["ChunkRetrievalTool"]
+    H --> K["DocumentMetadataTool"]
+    H --> L["MemoryTool"]
+    H --> M["ComplianceReportTool"]
+    J --> N["VectorStoreService → PgVector"]
+    I --> O["DocumentRepository → MySQL"]
+    M --> P["ComplianceReportService (existing)"]
+    C --> Q["RerankingService"]
+    C --> R["ContextAssembler"]
+    C --> S["ChatbotTracingService → chatbot_trace"]
+```
+
+---
+
+## New Files Created (25 files)
+
+### Entities (MySQL/JPA)
+| File | Purpose |
+|---|---|
+| [`UserMemory.java`](file:///b:/placement%20course/JAVA%20development/compliqMain/compliq/src/main/java/com/smit/compliq/entity/UserMemory.java) | Long-term user memory with category, TTL, indexes |
+| [`ChatbotTrace.java`](file:///b:/placement%20course/JAVA%20development/compliqMain/compliq/src/main/java/com/smit/compliq/entity/ChatbotTrace.java) | Execution trace for every chatbot request |
+
+### Enums
+| File | Purpose |
+|---|---|
+| [`MemoryCategory.java`](file:///b:/placement%20course/JAVA%20development/compliqMain/compliq/src/main/java/com/smit/compliq/enums/MemoryCategory.java) | PREFERENCE, CONTEXT, FACT |
+| [`ChatToolName.java`](file:///b:/placement%20course/JAVA%20development/compliqMain/compliq/src/main/java/com/smit/compliq/enums/ChatToolName.java) | All 6 agent tools |
+| [`ApprovalStatus.java`](file:///b:/placement%20course/JAVA%20development/compliqMain/compliq/src/main/java/com/smit/compliq/enums/ApprovalStatus.java) | APPROVED, PENDING, REJECTED |
+
+### Repositories
+| File | Purpose |
+|---|---|
+| [`UserMemoryRepository.java`](file:///b:/placement%20course/JAVA%20development/compliqMain/compliq/src/main/java/com/smit/compliq/repository/UserMemoryRepository.java) | Memory CRUD, keyword search, LRU eviction |
+| [`ChatbotTraceRepository.java`](file:///b:/placement%20course/JAVA%20development/compliqMain/compliq/src/main/java/com/smit/compliq/repository/ChatbotTraceRepository.java) | Trace lookups by session/user |
+
+### DTOs (chatbot sub-package)
+| File | Purpose |
+|---|---|
+| [`ChatRequestDTO.java`](file:///b:/placement%20course/JAVA%20development/compliqMain/compliq/src/main/java/com/smit/compliq/dto/chatbot/ChatRequestDTO.java) | Request: sessionId, message, approvalToken |
+| [`ChatResponseDTO.java`](file:///b:/placement%20course/JAVA%20development/compliqMain/compliq/src/main/java/com/smit/compliq/dto/chatbot/ChatResponseDTO.java) | Response with factory methods (success, approval, fallback) |
+| [`CitationDTO.java`](file:///b:/placement%20course/JAVA%20development/compliqMain/compliq/src/main/java/com/smit/compliq/dto/chatbot/CitationDTO.java) | Document citation with chunk preview |
+| [`ToolCallDTO.java`](file:///b:/placement%20course/JAVA%20development/compliqMain/compliq/src/main/java/com/smit/compliq/dto/chatbot/ToolCallDTO.java) | Tool execution result with timing |
+| [`AgentStepDTO.java`](file:///b:/placement%20course/JAVA%20development/compliqMain/compliq/src/main/java/com/smit/compliq/dto/chatbot/AgentStepDTO.java) | Individual agent reasoning step |
+
+### Agent Tools (authorization-enforced)
+| File | Purpose |
+|---|---|
+| [`DocumentSearchTool.java`](file:///b:/placement%20course/JAVA%20development/compliqMain/compliq/src/main/java/com/smit/compliq/service/tools/DocumentSearchTool.java) | Search user's documents by name/type |
+| [`ChunkRetrievalTool.java`](file:///b:/placement%20course/JAVA%20development/compliqMain/compliq/src/main/java/com/smit/compliq/service/tools/ChunkRetrievalTool.java) | Hybrid vector+keyword search (user-scoped) |
+| [`DocumentMetadataTool.java`](file:///b:/placement%20course/JAVA%20development/compliqMain/compliq/src/main/java/com/smit/compliq/service/tools/DocumentMetadataTool.java) | Inspect document metadata (ownership verified) |
+| [`MemoryTool.java`](file:///b:/placement%20course/JAVA%20development/compliqMain/compliq/src/main/java/com/smit/compliq/service/tools/MemoryTool.java) | Store/recall memories (50 cap, sensitive data filtering) |
+| [`ComplianceReportTool.java`](file:///b:/placement%20course/JAVA%20development/compliqMain/compliq/src/main/java/com/smit/compliq/service/tools/ComplianceReportTool.java) | Trigger compliance report (requires human approval) |
+| [`ToolExecutor.java`](file:///b:/placement%20course/JAVA%20development/compliqMain/compliq/src/main/java/com/smit/compliq/service/tools/ToolExecutor.java) | Central dispatcher with failure recovery + output sanitization |
+
+### Core Services
+| File | Purpose |
+|---|---|
+| [`QueryUnderstandingService.java`](file:///b:/placement%20course/JAVA%20development/compliqMain/compliq/src/main/java/com/smit/compliq/service/QueryUnderstandingService.java) | LLM-powered intent extraction + query expansion |
+| [`RerankingService.java`](file:///b:/placement%20course/JAVA%20development/compliqMain/compliq/src/main/java/com/smit/compliq/service/RerankingService.java) | LLM-based relevance scoring (0-10) + filtering |
+| [`MemoryService.java`](file:///b:/placement%20course/JAVA%20development/compliqMain/compliq/src/main/java/com/smit/compliq/service/MemoryService.java) | Episodic + long-term memory management |
+| [`ChatbotAgentService.java`](file:///b:/placement%20course/JAVA%20development/compliqMain/compliq/src/main/java/com/smit/compliq/service/ChatbotAgentService.java) | **Core agent orchestrator** — ReAct loop, tool dispatch, failure recovery |
+| [`ChatbotTracingService.java`](file:///b:/placement%20course/JAVA%20development/compliqMain/compliq/src/main/java/com/smit/compliq/service/ChatbotTracingService.java) | Execution tracing with cost calculation + sanitization |
+
+### Prompts & Controller
+| File | Purpose |
+|---|---|
+| [`ChatbotPrompts.java`](file:///b:/placement%20course/JAVA%20development/compliqMain/compliq/src/main/java/com/smit/compliq/prompts/ChatbotPrompts.java) | Versioned system prompt with tool schemas |
+| [`ChatbotController.java`](file:///b:/placement%20course/JAVA%20development/compliqMain/compliq/src/main/java/com/smit/compliq/controller/ChatbotController.java) | REST endpoints: chat, sessions, messages, approve |
+
+---
+
+## Modified Files (5 files)
+
+| File | Change |
+|---|---|
+| [`DocumentRepository.java`](file:///b:/placement%20course/JAVA%20development/compliqMain/compliq/src/main/java/com/smit/compliq/repository/DocumentRepository.java) | Added `findByUploadedBy()` and `findByDocIdAndUploadedBy()` |
+| [`ChatSessionRepository.java`](file:///b:/placement%20course/JAVA%20development/compliqMain/compliq/src/main/java/com/smit/compliq/repository/ChatSessionRepository.java) | Added `findByUserOrderByUpdatedAtDesc()` and `findBySessionIdAndUser()` |
+| [`VectorStoreService.java`](file:///b:/placement%20course/JAVA%20development/compliqMain/compliq/src/main/java/com/smit/compliq/service/VectorStoreService.java) | Added `hybridSearchWithFilters()` (existing methods unchanged) |
+| [`ContextAssembler.java`](file:///b:/placement%20course/JAVA%20development/compliqMain/compliq/src/main/java/com/smit/compliq/service/ContextAssembler.java) | Added `assembleChatContext()` (existing method unchanged) |
+| [`CustomUserDetailService.java`](file:///b:/placement%20course/JAVA%20development/compliqMain/compliq/src/main/java/com/smit/compliq/service/CustomUserDetailService.java) | Now includes user role as `GrantedAuthority` |
+
+---
+
+## New API Endpoints
+
+| Method | Path | Description |
+|---|---|---|
+| `POST` | `/api/chatbot/chat` | Send a message to the chatbot |
+| `GET` | `/api/chatbot/sessions` | List user's chat sessions |
+| `GET` | `/api/chatbot/sessions/{id}/messages` | Get messages in a session |
+| `POST` | `/api/chatbot/approve/{token}` | Confirm a pending approval |
+
+### Example: Chat Request
+```json
+POST /api/chatbot/chat
+Authorization: Bearer <JWT>
+
+{
+  "sessionId": null,
+  "message": "What are the payment terms in my latest contract?"
+}
+```
+
+### Example: Chat Response
+```json
+{
+  "sessionId": 42,
+  "messageId": 156,
+  "response": "Based on your contract document, the payment terms are Net 30 days...",
+  "citations": [
+    {
+      "documentId": 5,
+      "documentName": "Document 5",
+      "chunkPreview": "Payment shall be made within thirty (30) calendar days...",
+      "pageNumber": 3
+    }
+  ],
+  "requiresApproval": false,
+  "traceId": "a1b2c3d4-..."
+}
+```
+
+---
+
+## Key Design Decisions
+
+1. **Manual tool dispatch** instead of Spring AI's `@Tool` annotations — avoids framework coupling and works reliably with Gemini via the existing `ChatClient` pattern.
+
+2. **Authorization at the data-access layer** — every tool receives the `User` object directly and all database queries are scoped. The prompt cannot override this.
+
+3. **Human approval via REST tokens** — high-impact actions return `requiresApproval: true` with an `approvalToken`. The frontend shows a confirmation dialog and POSTs to `/approve/{token}`.
+
+4. **Three-layer memory**: episodic (last 10 messages), session (in-memory during loop), long-term (persistent `UserMemory` entities with 50-per-user cap and sensitive data filtering).
+
+5. **Failure recovery at every layer**: LLM retries with exponential backoff, tool failures wrapped in safe DTOs, retrieval failures gracefully degraded, malformed JSON re-prompted, always a fallback response.
+
+---
+
+## Tests Created (4 test files)
+
+| Test | Coverage |
+|---|---|
+| [`ChatbotAgentServiceTest.java`](file:///b:/placement%20course/JAVA%20development/compliqMain/compliq/src/test/java/com/smit/compliq/service/ChatbotAgentServiceTest.java) | Retrieval pipeline, failure recovery, structured outputs, sessions |
+| [`ToolExecutorTest.java`](file:///b:/placement%20course/JAVA%20development/compliqMain/compliq/src/test/java/com/smit/compliq/service/tools/ToolExecutorTest.java) | Tool authorization, cross-user isolation, failure wrapping, approval flow |
+| [`MemoryServiceTest.java`](file:///b:/placement%20course/JAVA%20development/compliqMain/compliq/src/test/java/com/smit/compliq/service/MemoryServiceTest.java) | Episodic/long-term memory, sensitive data rejection, dedup, limits |
+| [`ChatbotTracingServiceTest.java`](file:///b:/placement%20course/JAVA%20development/compliqMain/compliq/src/test/java/com/smit/compliq/service/ChatbotTracingServiceTest.java) | Trace creation, cost calculation, JWT/key sanitization, truncation |

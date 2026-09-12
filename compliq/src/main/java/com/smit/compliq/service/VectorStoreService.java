@@ -103,4 +103,28 @@ public class VectorStoreService {
                 .map(entry -> documentMap.get(entry.getKey()))
                 .toList();
     }
+
+    /**
+     * Enhanced hybrid search with optional metadata filters.
+     * Filters are applied post-retrieval to the combined results.
+     * Existing hybridSearch(query, userId) remains unchanged for backward compatibility.
+     */
+    public List<Document> hybridSearchWithFilters(String query, Long userId, java.util.Map<String, Object> metadataFilters) {
+        List<Document> results = hybridSearch(query, userId);
+
+        if (metadataFilters == null || metadataFilters.isEmpty()) {
+            return results;
+        }
+
+        return results.stream()
+            .filter(doc -> {
+                for (java.util.Map.Entry<String, Object> filter : metadataFilters.entrySet()) {
+                    Object docValue = doc.getMetadata().get(filter.getKey());
+                    if (docValue == null) return false;
+                    if (!docValue.toString().equalsIgnoreCase(filter.getValue().toString())) return false;
+                }
+                return true;
+            })
+            .toList();
+    }
 }

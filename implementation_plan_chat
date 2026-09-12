@@ -1,0 +1,353 @@
+# CompliQ AI Compliance Chatbot — Implementation Plan
+
+Build an agentic, tool-calling compliance chatbot on top of the existing Phase 1 RAG + report-generation architecture, without breaking any existing functionality.
+
+## User Review Required
+
+> [!IMPORTANT]
+> **Dual-database complexity**: The codebase uses MySQL (primary, JPA) + PostgreSQL (pgvector). The new `UserMemory` entity and `ChatbotTrace` entity will go in MySQL (same as `ChatSession`/`ChatMessage`). Confirm this is acceptable, or should we use a separate store?
+
+> [!WARNING]
+> **Secrets in `application.properties`**: The current `application.properties` contains plain-text AWS keys, DB passwords, and Gemini API key. This plan does NOT move them to environment variables (out of scope), but the new chatbot tracing will redact them from logs. You should migrate secrets to env vars or a vault in a follow-up.
+
+> [!IMPORTANT]
+> **Spring Boot 4.0.6 / Spring AI 2.0.0-M8**: These are cutting-edge milestone releases. Some APIs (especially Spring AI's tool-calling / function-calling) may differ from stable docs. The plan uses the `ChatClient` builder pattern already established in `GeminiAIService`. If Spring AI 2.0.0-M8 doesn't support `@Tool` annotations natively for Gemini, we'll implement a manual tool-dispatch loop.
+
+## Open Questions
+
+> [!IMPORTANT]
+> **1. Cost tracking pricing**: What are the per-token costs you want to use for Gemini 2.5 Flash? The plan defaults to `$0.15/1M input, $0.60/1M output` (Gemini 2.5 Flash published pricing). Adjust if needed.
+
+> [!IMPORTANT]
+> **2. Human approval UX**: For high-impact actions (e.g., triggering a full compliance report, deleting documents), the plan has the agent return a `REQUIRES_APPROVAL` status with a description. The frontend would show a confirmation dialog. The user then sends a second request with an `approvalToken`. Is this acceptable, or do you want WebSocket-based real-time approval?
+
+> [!IMPORTANT]
+> **3. Memory retention policy**: The plan stores up to 50 memories per user, evicting oldest when exceeded, and caps each memory at 500 characters. Memories are only created when the LLM explicitly decides something is worth remembering. Adjust thresholds?
+
+---
+
+## Proposed Changes
+
+### Component 1: New Entity Layer (JPA / MySQL)
+
+New entities for the chatbot subsystem, stored in the primary MySQL database alongside existing entities.
+
+#### [NEW] [UserMemory.java](file:///b:/placement%20course/JAVA%20development/compliqMain/compliq/src/main/java/com/smit/compliq/entity/UserMemory.java)
+- JPA entity: `user_memory` table
+- Fields: `memoryId` (PK), `user` (FK → User), `memoryKey` (indexed, e.g. "preferred_document_type"), `memoryValue` (TEXT), `category` (enum: `PREFERENCE`, `CONTEXT`, `FACT`), `createdAt`, `updatedAt`, `expiresAt` (nullable)
+- Enables long-term episodic memory per user
+
+#### [NEW] [ChatbotTrace.java](file:///b:/placement%20course/JAVA%20development/compliqMain/compliq/src/main/java/com/smit/compliq/entity/ChatbotTrace.java)
+- JPA entity: `chatbot_trace` table
+- Fields: `traceId` (PK, UUID), `sessionId` (FK → ChatSession), `userId` (FK → User), `requestId` (UUID), `model`, `promptVersion`, `retrievedDocumentIds` (TEXT/JSON), `rerankResults` (TEXT/JSON), `toolCalls` (TEXT/JSON), `latencyMs`, `promptTokens`, `completionTokens`, `totalCost`, `failures` (TEXT/JSON), `finalResponsePreview` (VARCHAR 500, truncated), `createdAt`
+- Every chatbot invocation produces exactly one trace row
+
+---
+
+### Component 2: New Enums
+
+#### [NEW] [MemoryCategory.java](file:///b:/placement%20course/JAVA%20development/compliqMain/compliq/src/main/java/com/smit/compliq/enums/MemoryCategory.java)
+- `PREFERENCE`, `CONTEXT`, `FACT`
+
+#### [NEW] [ChatToolName.java](file:///b:/placement%20course/JAVA%20development/compliqMain/compliq/src/main/java/com/smit/compliq/enums/ChatToolName.java)
+- `SEARCH_DOCUMENTS`, `RETRIEVE_CHUNKS`, `INSPECT_METADATA`, `RECALL_MEMORIES`, `RUN_COMPLIANCE_REPORT`, `STORE_MEMORY`
+
+#### [NEW] [ApprovalStatus.java](file:///b:/placement%20course/JAVA%20development/compliqMain/compliq/src/main/java/com/smit/compliq/enums/ApprovalStatus.java)
+- `APPROVED`, `PENDING`, `REJECTED`
+
+---
+
+### Component 3: New Repository Layer
+
+#### [NEW] [UserMemoryRepository.java](file:///b:/placement%20course/JAVA%20development/compliqMain/compliq/src/main/java/com/smit/compliq/repository/UserMemoryRepository.java)
+- `findByUser(User user)` → List
+- `findByUserAndMemoryKeyContaining(User user, String keyword)` → List
+- `countByUser(User user)` → long
+- `deleteOldestByUser(User user)` → custom query
+
+#### [NEW] [ChatbotTraceRepository.java](file:///b:/placement%20course/JAVA%20development/compliqMain/compliq/src/main/java/com/smit/compliq/repository/ChatbotTraceRepository.java)
+- `findBySessionId(long sessionId)` → List
+- `findByUserId(long userId)` → List
+
+#### [MODIFY] [DocumentRepository.java](file:///b:/placement%20course/JAVA%20development/compliqMain/compliq/src/main/java/com/smit/compliq/repository/DocumentRepository.java)
+- Add: `List<Document> findByUploadedBy(User user)` — needed by the agent's document search tool
+- Add: `Optional<Document> findByDocIdAndUploadedBy(long docId, User user)` — authorization-enforced lookup
+
+#### [MODIFY] [ChatSessionRepository.java](file:///b:/placement%20course/JAVA%20development/compliqMain/compliq/src/main/java/com/smit/compliq/repository/ChatSessionRepository.java)
+- Add: `Optional<ChatSession> findBySessionIdAndUser(long sessionId, User user)` — authorization-enforced session lookup
+
+---
+
+### Component 4: Structured DTOs for Chatbot
+
+#### [NEW] [ChatRequestDTO.java](file:///b:/placement%20course/JAVA%20development/compliqMain/compliq/src/main/java/com/smit/compliq/dto/chatbot/ChatRequestDTO.java)
+- Fields: `sessionId` (nullable, creates new session if null), `message` (String, required), `approvalToken` (nullable, UUID — set when confirming a pending action)
+
+#### [NEW] [ChatResponseDTO.java](file:///b:/placement%20course/JAVA%20development/compliqMain/compliq/src/main/java/com/smit/compliq/dto/chatbot/ChatResponseDTO.java)
+- Fields: `sessionId`, `messageId`, `response` (String), `citations` (List\<CitationDTO\>), `requiresApproval` (boolean), `approvalDescription` (nullable String), `approvalToken` (nullable UUID), `traceId` (UUID)
+
+#### [NEW] [CitationDTO.java](file:///b:/placement%20course/JAVA%20development/compliqMain/compliq/src/main/java/com/smit/compliq/dto/chatbot/CitationDTO.java)
+- Fields: `documentId`, `documentName`, `chunkPreview` (first 200 chars), `pageNumber` (nullable)
+
+#### [NEW] [ToolCallDTO.java](file:///b:/placement%20course/JAVA%20development/compliqMain/compliq/src/main/java/com/smit/compliq/dto/chatbot/ToolCallDTO.java)
+- Fields: `toolName` (ChatToolName), `arguments` (Map<String,Object>), `result` (String, truncated), `latencyMs`, `success` (boolean), `errorMessage` (nullable)
+
+#### [NEW] [AgentStepDTO.java](file:///b:/placement%20course/JAVA%20development/compliqMain/compliq/src/main/java/com/smit/compliq/dto/chatbot/AgentStepDTO.java)
+- Internal DTO tracking each agent reasoning step: `stepNumber`, `thought`, `toolCall` (nullable ToolCallDTO), `observation`
+
+---
+
+### Component 5: Chatbot Agent Tools (Authorization-Enforced)
+
+Each tool is a Spring `@Service` that receives the authenticated `User` object — **not** the userId from the prompt. Every data access is filtered by user.
+
+#### [NEW] [DocumentSearchTool.java](file:///b:/placement%20course/JAVA%20development/compliqMain/compliq/src/main/java/com/smit/compliq/service/tools/DocumentSearchTool.java)
+- `searchDocuments(User user, String query)` → searches `DocumentRepository.findByUploadedBy(user)` matching title/filename with the query
+- Returns structured list of matching documents (id, title, type, uploadDate)
+- Authorization: hard-coded `user` filter, no prompt-based override possible
+
+#### [NEW] [ChunkRetrievalTool.java](file:///b:/placement%20course/JAVA%20development/compliqMain/compliq/src/main/java/com/smit/compliq/service/tools/ChunkRetrievalTool.java)
+- `retrieveChunks(User user, String query, Long documentId, String documentType)` → calls `VectorStoreService.hybridSearch()` with user's ID
+- Optionally filters by `documentId` or `documentType` metadata
+- Returns list of chunk content + metadata (page number, category)
+- Authorization: `userId` filter expression always applied to vector search
+
+#### [NEW] [DocumentMetadataTool.java](file:///b:/placement%20course/JAVA%20development/compliqMain/compliq/src/main/java/com/smit/compliq/service/tools/DocumentMetadataTool.java)
+- `inspectMetadata(User user, long documentId)` → `DocumentRepository.findByDocIdAndUploadedBy(docId, user)` → returns metadata DTO
+- Authorization: query scoped to user
+
+#### [NEW] [MemoryTool.java](file:///b:/placement%20course/JAVA%20development/compliqMain/compliq/src/main/java/com/smit/compliq/service/tools/MemoryTool.java)
+- `recallMemories(User user, String query)` → searches `UserMemoryRepository` for keyword matches
+- `storeMemory(User user, String key, String value, MemoryCategory category)` → creates/updates memory entry, enforcing max 50 per user with LRU eviction
+- Authorization: all queries scoped to user
+
+#### [NEW] [ComplianceReportTool.java](file:///b:/placement%20course/JAVA%20development/compliqMain/compliq/src/main/java/com/smit/compliq/service/tools/ComplianceReportTool.java)
+- `generateReport(User user, long contractDocId, long invoiceDocId, long poDocId)` → validates all three documents belong to user, then delegates to existing `ComplianceReportService.generateReport()`
+- **Requires human approval** — returns a pending approval object instead of executing directly
+- Authorization: verifies document ownership before execution
+
+#### [NEW] [ToolExecutor.java](file:///b:/placement%20course/JAVA%20development/compliqMain/compliq/src/main/java/com/smit/compliq/service/tools/ToolExecutor.java)
+- Central dispatcher: given a tool name + arguments + User, routes to the correct tool service
+- Wraps each call in try/catch for failure recovery
+- Records `ToolCallDTO` with timing, success/failure, error messages
+- Sanitizes outputs to prevent leaking secrets/tokens in tool results
+
+---
+
+### Component 6: Retrieval Pipeline (Enhanced)
+
+#### [NEW] [QueryUnderstandingService.java](file:///b:/placement%20course/JAVA%20development/compliqMain/compliq/src/main/java/com/smit/compliq/service/QueryUnderstandingService.java)
+- Takes raw user question → uses LLM to extract:
+  - `intent` (e.g., QUESTION, REPORT_REQUEST, DOCUMENT_SEARCH, GENERAL)
+  - `expandedQuery` (rewritten for better retrieval)
+  - `filters` (documentType, date range if mentioned)
+- Returns structured `QueryAnalysis` object
+- Has fallback: if LLM fails, returns original query with QUESTION intent
+
+#### [MODIFY] [VectorStoreService.java](file:///b:/placement%20course/JAVA%20development/compliqMain/compliq/src/main/java/com/smit/compliq/service/VectorStoreService.java)
+- Add new method: `hybridSearchWithFilters(String query, Long userId, Map<String, Object> metadataFilters)` — extends existing `hybridSearch` to support optional metadata filters (documentType, documentId, date range)
+- Keep existing `hybridSearch(query, userId)` unchanged for backward compatibility
+
+#### [NEW] [RerankingService.java](file:///b:/placement%20course/JAVA%20development/compliqMain/compliq/src/main/java/com/smit/compliq/service/RerankingService.java)
+- Takes query + List\<Document\> chunks → uses LLM to score relevance 0-10 for each chunk
+- Returns chunks sorted by relevance score, filtered below threshold (score < 3)
+- Fallback: if LLM reranking fails, returns RRF-ordered results unchanged
+
+#### [MODIFY] [ContextAssembler.java](file:///b:/placement%20course/JAVA%20development/compliqMain/compliq/src/main/java/com/smit/compliq/service/ContextAssembler.java)
+- Add new method: `assembleChatContext(List<Document> chunks, List<UserMemory> memories, List<ChatMessage> conversationHistory)` — builds a prompt context block with sections for retrieved documents, user memories, and recent conversation
+- Keep existing `assembleContext(List<Document>)` unchanged
+
+---
+
+### Component 7: Agent Orchestrator (Core)
+
+#### [NEW] [ChatbotAgentService.java](file:///b:/placement%20course/JAVA%20development/compliqMain/compliq/src/main/java/com/smit/compliq/service/ChatbotAgentService.java)
+The heart of the chatbot. Implements an agentic ReAct-style loop:
+
+1. **Receive** user message + session context
+2. **Query Understanding** → extract intent, expand query
+3. **Build system prompt** with tool descriptions, instructions, conversation history, memories
+4. **Agent loop** (max 5 iterations):
+   - Send prompt to LLM
+   - Parse LLM output for tool calls (structured JSON format)
+   - If tool call found → execute via `ToolExecutor` → append result to conversation → continue loop
+   - If human approval required → break and return pending status
+   - If final answer found → break and return response
+5. **Extract citations** from the context chunks that were actually used
+6. **Persist** chat messages, trace, optionally store new memories
+7. **Return** structured `ChatResponseDTO`
+
+Key design decisions:
+- System prompt is versioned (constant `PROMPT_VERSION = "1.0"`)
+- Max tool calls per request: 5 (prevents infinite loops)
+- Each iteration has a 30-second timeout
+- Secrets/prompts never included in trace logs — only hashed/truncated
+- If LLM returns malformed tool call JSON → retry with repair prompt (1 retry)
+- If all retries fail → return safe fallback: "I'm sorry, I encountered an issue processing your request. Please try again."
+
+#### [NEW] [ChatbotPrompts.java](file:///b:/placement%20course/JAVA%20development/compliqMain/compliq/src/main/java/com/smit/compliq/prompts/ChatbotPrompts.java)
+- `SYSTEM_PROMPT` — comprehensive system instructions defining agent persona, available tools (with JSON schemas), rules for grounded responses, citation requirements, memory policies, when to request human approval
+- `QUERY_UNDERSTANDING_PROMPT` — for the query analysis step
+- `RERANKING_PROMPT` — for the reranking step
+- All prompts are constants (versioned alongside `PROMPT_VERSION`)
+
+---
+
+### Component 8: Memory Architecture
+
+#### [NEW] [MemoryService.java](file:///b:/placement%20course/JAVA%20development/compliqMain/compliq/src/main/java/com/smit/compliq/service/MemoryService.java)
+- **Episodic memory**: Recent chat history from `ChatMessageRepository` (last 10 messages in session)
+- **Session memory**: Current conversation context (maintained in-memory during agent loop)
+- **Long-term memory**: `UserMemory` entities — facts, preferences, context the user has shared across sessions
+- **Memory creation policy**: LLM decides if something is worth remembering by including a `store_memory` tool call. The service validates: no duplicates, max 50 per user, max 500 chars per value, no sensitive data patterns (credit cards, SSNs, passwords redacted)
+- **Memory retrieval**: keyword matching on `memoryKey` + `memoryValue`, returns top 5 most relevant
+
+---
+
+### Component 9: Tracing & Cost Tracking
+
+#### [NEW] [ChatbotTracingService.java](file:///b:/placement%20course/JAVA%20development/compliqMain/compliq/src/main/java/com/smit/compliq/service/ChatbotTracingService.java)
+- Creates and persists `ChatbotTrace` entity after every chatbot execution
+- Tracks: requestId, sessionId, userId, model name, prompt version, retrieved doc IDs, rerank results, tool calls (serialized as JSON), latency, token usage, failures, final response preview (truncated to 500 chars)
+- **Cost calculation**: `(promptTokens * INPUT_COST_PER_TOKEN) + (completionTokens * OUTPUT_COST_PER_TOKEN)`
+- Defaults: `INPUT_COST_PER_TOKEN = 0.00000015` ($0.15/1M), `OUTPUT_COST_PER_TOKEN = 0.0000006` ($0.60/1M)
+- **Sanitization**: strips any string matching JWT pattern, API key patterns, or password fields before persisting to trace
+
+---
+
+### Component 10: Failure Recovery
+
+Built into `ChatbotAgentService` and `ToolExecutor`:
+
+| Failure Type | Recovery Strategy |
+|---|---|
+| **Tool failure** | Catch exception, record in trace, inform agent "Tool X failed: [safe error message]", agent can retry or use alternative |
+| **LLM failure** | Retry once with exponential backoff (2s). If 2nd attempt fails, return fallback response |
+| **Retrieval failure** | If vector search fails, fall back to keyword-only search. If both fail, agent proceeds without context, clearly stating "I couldn't retrieve relevant documents" |
+| **Malformed structured output** | JSON parse failure → send repair prompt (existing pattern from `GeminiAIService`). Max 2 retries |
+| **Timeout/rate-limit** | Catch `TimeoutException` / HTTP 429 → wait 5s → retry once. If still failing, return "Service temporarily busy, please try again shortly" |
+| **Partial agent execution** | If agent loop breaks mid-execution, persist whatever trace data we have, save partial conversation, return safe fallback |
+
+---
+
+### Component 11: Controller & Security
+
+#### [NEW] [ChatbotController.java](file:///b:/placement%20course/JAVA%20development/compliqMain/compliq/src/main/java/com/smit/compliq/controller/ChatbotController.java)
+- `POST /api/chatbot/chat` — main chat endpoint. Accepts `ChatRequestDTO`, returns `ChatResponseDTO`
+- `GET /api/chatbot/sessions` — list user's chat sessions
+- `GET /api/chatbot/sessions/{sessionId}/messages` — get messages for a session
+- `POST /api/chatbot/approve/{approvalToken}` — confirm a pending approval
+- All endpoints extract authenticated user from `SecurityContextHolder`
+
+#### [MODIFY] [SecurityConfig.java](file:///b:/placement%20course/JAVA%20development/compliqMain/compliq/src/main/java/com/smit/compliq/config/SecurityConfig.java)
+- No changes needed — `/api/chatbot/**` already falls under `.anyRequest().authenticated()`
+
+#### [MODIFY] [CustomUserDetailService.java](file:///b:/placement%20course/JAVA%20development/compliqMain/compliq/src/main/java/com/smit/compliq/service/CustomUserDetailService.java)
+- Include `user.getRole().name()` as a `GrantedAuthority` so role-based checks work (currently returns `Collections.emptyList()`)
+
+---
+
+### Component 12: Backend Tests
+
+#### [NEW] [ChatbotAgentServiceTest.java](file:///b:/placement%20course/JAVA%20development/compliqMain/compliq/src/test/java/com/smit/compliq/service/ChatbotAgentServiceTest.java)
+Unit tests with mocked dependencies:
+- **Retrieval pipeline**: verify hybrid search called with correct userId, metadata filters applied
+- **Reranking**: verify low-relevance chunks filtered, ordering correct
+- **Memory**: verify creation policy (max 50, dedup), retrieval by keyword
+- **Tool authorization**: verify `DocumentSearchTool` only returns docs belonging to authenticated user; verify cross-user isolation (user A cannot see user B's documents)
+- **Structured outputs**: verify `ChatResponseDTO` serialization, `ToolCallDTO` parsing
+- **Failure recovery**: verify fallback response on LLM exception, verify tool failure doesn't crash agent loop
+- **Approval flow**: verify `REQUIRES_APPROVAL` status for compliance report, verify approval token validation
+
+#### [NEW] [ToolExecutorTest.java](file:///b:/placement%20course/JAVA%20development/compliqMain/compliq/src/test/java/com/smit/compliq/service/ToolExecutorTest.java)
+- Test each tool individually with mocked repos
+- Test cross-user data isolation (user A's tool call cannot access user B's documents)
+- Test failure wrapping (exception → safe ToolCallDTO with error)
+
+#### [NEW] [MemoryServiceTest.java](file:///b:/placement%20course/JAVA%20development/compliqMain/compliq/src/test/java/com/smit/compliq/service/MemoryServiceTest.java)
+- Test memory CRUD, eviction policy, sensitive data redaction
+
+#### [NEW] [ChatbotTracingServiceTest.java](file:///b:/placement%20course/JAVA%20development/compliqMain/compliq/src/test/java/com/smit/compliq/service/ChatbotTracingServiceTest.java)
+- Test trace creation, cost calculation, secret sanitization
+
+---
+
+## Architecture Diagram
+
+```mermaid
+flowchart TD
+    A["Client (React Frontend)"] -->|"POST /api/chatbot/chat"| B["ChatbotController"]
+    B -->|"Extract User from JWT"| C["ChatbotAgentService"]
+    
+    C --> D["QueryUnderstandingService"]
+    D -->|"Intent + Expanded Query"| C
+    
+    C --> E["MemoryService"]
+    E -->|"Episodic + Long-term Memories"| C
+    
+    C --> F["Agent Loop (max 5 iterations)"]
+    F -->|"LLM Call"| G["GeminiAIService"]
+    F -->|"Tool Call"| H["ToolExecutor"]
+    
+    H --> I["DocumentSearchTool"]
+    H --> J["ChunkRetrievalTool"]
+    H --> K["DocumentMetadataTool"]
+    H --> L["MemoryTool"]
+    H --> M["ComplianceReportTool"]
+    
+    J -->|"userId filter"| N["VectorStoreService"]
+    N -->|"Hybrid Search"| O["PgVector (PostgreSQL)"]
+    
+    I -->|"user filter"| P["DocumentRepository"]
+    P --> Q["MySQL"]
+    
+    M -->|"Approval Required"| R["Human Approval Flow"]
+    M -->|"Approved"| S["ComplianceReportService (existing)"]
+    
+    C --> T["RerankingService"]
+    C --> U["ContextAssembler (enhanced)"]
+    C --> V["ChatbotTracingService"]
+    V --> W["ChatbotTrace (MySQL)"]
+    
+    C -->|"ChatResponseDTO"| B
+    B -->|"JSON Response"| A
+```
+
+---
+
+## File Summary
+
+| Category | Files | Type |
+|---|---|---|
+| Entities | `UserMemory.java`, `ChatbotTrace.java` | NEW |
+| Enums | `MemoryCategory.java`, `ChatToolName.java`, `ApprovalStatus.java` | NEW |
+| Repositories | `UserMemoryRepository.java`, `ChatbotTraceRepository.java` | NEW |
+| Repositories | `DocumentRepository.java`, `ChatSessionRepository.java` | MODIFY |
+| DTOs | `ChatRequestDTO.java`, `ChatResponseDTO.java`, `CitationDTO.java`, `ToolCallDTO.java`, `AgentStepDTO.java` | NEW |
+| Tools | `DocumentSearchTool.java`, `ChunkRetrievalTool.java`, `DocumentMetadataTool.java`, `MemoryTool.java`, `ComplianceReportTool.java`, `ToolExecutor.java` | NEW |
+| Services | `QueryUnderstandingService.java`, `RerankingService.java`, `MemoryService.java`, `ChatbotAgentService.java`, `ChatbotTracingService.java` | NEW |
+| Services | `VectorStoreService.java`, `ContextAssembler.java` | MODIFY |
+| Prompts | `ChatbotPrompts.java` | NEW |
+| Controller | `ChatbotController.java` | NEW |
+| Services | `CustomUserDetailService.java` | MODIFY |
+| Tests | `ChatbotAgentServiceTest.java`, `ToolExecutorTest.java`, `MemoryServiceTest.java`, `ChatbotTracingServiceTest.java` | NEW |
+
+**Total: ~25 new files, ~5 modified files, 0 deleted files**
+
+---
+
+## Verification Plan
+
+### Automated Tests
+```bash
+cd compliq
+./mvnw test -Dtest="ChatbotAgentServiceTest,ToolExecutorTest,MemoryServiceTest,ChatbotTracingServiceTest"
+```
+
+### Manual Verification
+1. Start the application, authenticate via `/api/auth/login`
+2. Send a chat message to `/api/chatbot/chat` and verify grounded response with citations
+3. Verify cross-user isolation: authenticate as User B and confirm User A's documents are inaccessible
+4. Trigger a compliance report via chat and verify the approval flow
+5. Verify existing `/api/ai/workflow/` and `/api/compliance-report` endpoints still work unchanged
+6. Check `chatbot_trace` table for complete trace data after a chat interaction
