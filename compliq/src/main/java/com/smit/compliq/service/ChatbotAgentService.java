@@ -98,6 +98,9 @@ public class ChatbotAgentService {
                 return handleApproval(user, session, request.getApprovalToken(), trace, totalTimer);
             }
 
+            // Step 2.5: Input validation & Prompt Injection Defense
+            validateInput(request.getMessage());
+
             // Step 3: Persist user message
             ChatMessage userMessage = persistMessage(session, MessageRole.USER, request.getMessage());
 
@@ -279,6 +282,28 @@ public class ChatbotAgentService {
                 .orElseGet(() -> createSession(user, request.getMessage()));
         }
         return createSession(user, request.getMessage());
+    }
+
+    /**
+     * Security: Validate input and check for basic prompt injection.
+     */
+    private void validateInput(String message) {
+        if (message == null || message.isBlank()) {
+            throw new IllegalArgumentException("Message cannot be empty.");
+        }
+        if (message.length() > 2000) {
+            throw new IllegalArgumentException("Message is too long. Max 2000 characters.");
+        }
+        // Basic prompt injection patterns
+        String lowerMsg = message.toLowerCase();
+        if (lowerMsg.contains("ignore previous instructions") ||
+            lowerMsg.contains("forget previous instructions") ||
+            lowerMsg.contains("system prompt") ||
+            lowerMsg.contains("you are now") ||
+            lowerMsg.contains("bypass")) {
+            log.warn("Potential prompt injection detected: {}", message);
+            throw new SecurityException("Your request was flagged for security policy violation.");
+        }
     }
 
     private ChatSession createSession(User user, String firstMessage) {

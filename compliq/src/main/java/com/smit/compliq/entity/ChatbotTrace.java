@@ -70,6 +70,12 @@ public class ChatbotTrace {
     @Column(length = 500)
     private String finalResponsePreview;
 
+    @Column
+    private int retryCount;
+
+    @Column(length = 100)
+    private String recoveryState;
+
     @Temporal(TemporalType.TIMESTAMP)
     @Column(nullable = false)
     private Date createdAt;
@@ -210,5 +216,21 @@ public class ChatbotTrace {
 
     public void setCreatedAt(Date createdAt) {
         this.createdAt = createdAt;
+    }
+
+    public int getRetryCount() {
+        return retryCount;
+    }
+
+    public void setRetryCount(int retryCount) {
+        this.retryCount = retryCount;
+    }
+
+    public String getRecoveryState() {
+        return recoveryState;
+    }
+
+    public void setRecoveryState(String recoveryState) {
+        this.recoveryState = recoveryState;
     }
 }

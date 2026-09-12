@@ -5,6 +5,7 @@ import ReportPage from './pages/ReportPage';
 import LoginPage from './pages/LoginPage';
 import RegisterPage from './pages/RegisterPage';
 import HomePage from './pages/HomePage';
+import DashboardPage from './pages/DashboardPage';
 import ProtectedRoute from './components/ProtectedRoute';
 
 function App() {
@@ -22,6 +23,7 @@ function App() {
             <Route element={<ProtectedRoute />}>
               <Route path="/upload" element={<UploadPage />} />
               <Route path="/report" element={<ReportPage />} />
+              <Route path="/dashboard" element={<DashboardPage />} />
             </Route>
           </Routes>
         </main>

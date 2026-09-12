@@ -20,6 +20,7 @@ import com.smit.compliq.dto.chatbot.ChatResponseDTO;
 import com.smit.compliq.entity.ChatMessage;
 import com.smit.compliq.entity.ChatSession;
 import com.smit.compliq.entity.User;
+import com.smit.compliq.repository.ApprovalAuditLogRepository;
 import com.smit.compliq.repository.ChatMessageRepository;
 import com.smit.compliq.repository.ChatSessionRepository;
 import com.smit.compliq.repository.UserRepository;
@@ -37,6 +38,7 @@ public class ChatbotController {
     private final UserRepository userRepository;
     private final ChatSessionRepository sessionRepository;
     private final ChatMessageRepository messageRepository;
+    private final ApprovalAuditLogRepository approvalAuditLogRepository;
 
     /**
      * Main chat endpoint — processes a user message through the agentic pipeline.
@@ -122,6 +124,16 @@ public class ChatbotController {
                                       @RequestBody(required = false) ChatRequestDTO request) {
         try {
             User user = resolveUser(userDetails);
+
+            // Log the approval action
+            com.smit.compliq.entity.ApprovalAuditLog auditLog = new com.smit.compliq.entity.ApprovalAuditLog();
+            auditLog.setApprovalToken(approvalToken);
+            auditLog.setUser(user);
+            auditLog.setActionDescription("User approved action via dashboard.");
+            auditLog.setStatus(com.smit.compliq.enums.ApprovalStatus.APPROVED);
+            auditLog.setCreatedAt(new Date());
+            auditLog.setResolvedAt(new Date());
+            approvalAuditLogRepository.save(auditLog);
 
             // Create a request with the approval token
             ChatRequestDTO approvalRequest = new ChatRequestDTO();

@@ -85,7 +85,7 @@ class ChatbotAgentServiceTest {
             ChatRequestDTO request = new ChatRequestDTO("What are the payment terms?");
 
             when(sessionRepository.save(any(ChatSession.class))).thenReturn(testSession);
-            when(tracingService.startTrace(any(), any())).thenReturn(new com.smit.compliq.entity.ChatbotTrace());
+            when(tracingService.startTrace(any(), any())).thenReturn(new com.smit.compliq.entity.ChatbotTrace("req-123", testUser, "model", "1.0"));
             when(queryUnderstandingService.analyzeQuery(anyString()))
                 .thenReturn(new QueryUnderstandingService.QueryAnalysis("QUESTION", "payment terms", null, "What are the payment terms?"));
             when(memoryService.getEpisodicMemory(any())).thenReturn(List.of());
@@ -109,7 +109,7 @@ class ChatbotAgentServiceTest {
             ChatRequestDTO request = new ChatRequestDTO("Show me contract clauses");
 
             when(sessionRepository.save(any(ChatSession.class))).thenReturn(testSession);
-            when(tracingService.startTrace(any(), any())).thenReturn(new com.smit.compliq.entity.ChatbotTrace());
+            when(tracingService.startTrace(any(), any())).thenReturn(new com.smit.compliq.entity.ChatbotTrace("req-123", testUser, "model", "1.0"));
             when(queryUnderstandingService.analyzeQuery(anyString()))
                 .thenReturn(new QueryUnderstandingService.QueryAnalysis("QUESTION", "contract clauses", "CONTRACT", "Show me contract clauses"));
             when(memoryService.getEpisodicMemory(any())).thenReturn(List.of());
@@ -136,7 +136,7 @@ class ChatbotAgentServiceTest {
             ChatRequestDTO request = new ChatRequestDTO("What are the payment terms?");
 
             when(sessionRepository.save(any(ChatSession.class))).thenReturn(testSession);
-            when(tracingService.startTrace(any(), any())).thenReturn(new com.smit.compliq.entity.ChatbotTrace());
+            when(tracingService.startTrace(any(), any())).thenReturn(new com.smit.compliq.entity.ChatbotTrace("req-123", testUser, "model", "1.0"));
             when(queryUnderstandingService.analyzeQuery(anyString()))
                 .thenReturn(QueryUnderstandingService.QueryAnalysis.fallback("What are the payment terms?"));
             when(memoryService.getEpisodicMemory(any())).thenReturn(List.of());
@@ -160,7 +160,7 @@ class ChatbotAgentServiceTest {
             ChatRequestDTO request = new ChatRequestDTO("What are the clauses?");
 
             when(sessionRepository.save(any(ChatSession.class))).thenReturn(testSession);
-            when(tracingService.startTrace(any(), any())).thenReturn(new com.smit.compliq.entity.ChatbotTrace());
+            when(tracingService.startTrace(any(), any())).thenReturn(new com.smit.compliq.entity.ChatbotTrace("req-123", testUser, "model", "1.0"));
             when(queryUnderstandingService.analyzeQuery(anyString()))
                 .thenThrow(new RuntimeException("Parse error"));
             when(memoryService.getEpisodicMemory(any())).thenReturn(List.of());
@@ -182,7 +182,7 @@ class ChatbotAgentServiceTest {
             ChatRequestDTO request = new ChatRequestDTO("Find payment info");
 
             when(sessionRepository.save(any(ChatSession.class))).thenReturn(testSession);
-            when(tracingService.startTrace(any(), any())).thenReturn(new com.smit.compliq.entity.ChatbotTrace());
+            when(tracingService.startTrace(any(), any())).thenReturn(new com.smit.compliq.entity.ChatbotTrace("req-123", testUser, "model", "1.0"));
             when(queryUnderstandingService.analyzeQuery(anyString()))
                 .thenReturn(QueryUnderstandingService.QueryAnalysis.fallback("Find payment info"));
             when(memoryService.getEpisodicMemory(any())).thenReturn(List.of());
@@ -208,7 +208,7 @@ class ChatbotAgentServiceTest {
             ChatRequestDTO request = new ChatRequestDTO("Hello");
 
             when(sessionRepository.save(any(ChatSession.class))).thenReturn(testSession);
-            when(tracingService.startTrace(any(), any())).thenReturn(new com.smit.compliq.entity.ChatbotTrace());
+            when(tracingService.startTrace(any(), any())).thenReturn(new com.smit.compliq.entity.ChatbotTrace("req-123", testUser, "model", "1.0"));
             when(queryUnderstandingService.analyzeQuery(anyString()))
                 .thenReturn(new QueryUnderstandingService.QueryAnalysis("GENERAL", "Hello", null, "Hello"));
             when(memoryService.getEpisodicMemory(any())).thenReturn(List.of());
@@ -238,7 +238,7 @@ class ChatbotAgentServiceTest {
             request.setSessionId(null);
 
             when(sessionRepository.save(any(ChatSession.class))).thenReturn(testSession);
-            when(tracingService.startTrace(any(), any())).thenReturn(new com.smit.compliq.entity.ChatbotTrace());
+            when(tracingService.startTrace(any(), any())).thenReturn(new com.smit.compliq.entity.ChatbotTrace("req-123", testUser, "model", "1.0"));
             when(queryUnderstandingService.analyzeQuery(anyString()))
                 .thenReturn(new QueryUnderstandingService.QueryAnalysis("GENERAL", "Hello", null, "Hello"));
             when(memoryService.getEpisodicMemory(any())).thenReturn(List.of());
@@ -260,7 +260,7 @@ class ChatbotAgentServiceTest {
 
             when(sessionRepository.findBySessionIdAndUser(1L, testUser)).thenReturn(Optional.of(testSession));
             when(sessionRepository.save(any(ChatSession.class))).thenReturn(testSession);
-            when(tracingService.startTrace(any(), any())).thenReturn(new com.smit.compliq.entity.ChatbotTrace());
+            when(tracingService.startTrace(any(), any())).thenReturn(new com.smit.compliq.entity.ChatbotTrace("req-123", testUser, "model", "1.0"));
             when(queryUnderstandingService.analyzeQuery(anyString()))
                 .thenReturn(new QueryUnderstandingService.QueryAnalysis("QUESTION", "Follow up question", null, "Follow up question"));
             when(memoryService.getEpisodicMemory(any())).thenReturn(List.of());

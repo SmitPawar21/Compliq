@@ -103,7 +103,11 @@ public class ToolExecutor {
     private String getStringArg(Map<String, Object> args, String key, String defaultValue) {
         Object val = args.get(key);
         if (val == null) return defaultValue;
-        return val.toString();
+        String strVal = val.toString();
+        if (strVal.length() > 500) {
+            throw new IllegalArgumentException("Argument '" + key + "' exceeds maximum length of 500 characters.");
+        }
+        return strVal;
     }
 
     private long getLongArg(Map<String, Object> args, String key) {
@@ -131,7 +135,15 @@ public class ToolExecutor {
      * Sanitize arguments map before recording in trace.
      */
     private Map<String, Object> sanitizeArguments(Map<String, Object> args) {
-        // Arguments generally don't contain secrets, but scrub just in case
-        return args;
+        if (args == null) return java.util.Collections.emptyMap();
+        Map<String, Object> sanitized = new java.util.HashMap<>();
+        args.forEach((k, v) -> {
+            if (v instanceof String) {
+                sanitized.put(k, sanitizeOutput((String) v));
+            } else {
+                sanitized.put(k, v);
+            }
+        });
+        return sanitized;
     }
 }
